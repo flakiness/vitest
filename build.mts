@@ -1,4 +1,4 @@
-#!/usr/bin/env npx kubik
+#!/usr/bin/env -S npx kubik
 
 import esbuild from 'esbuild';
 import fs from 'fs';
