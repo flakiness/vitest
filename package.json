@@ -1,5 +1,5 @@
 {
-  "name": "flakiness/@vitest",
+  "name": "@flakiness/vitest",
   "version": "0.0.1",
   "description": "",
   "main": "index.js",
