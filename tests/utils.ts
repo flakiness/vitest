@@ -7,7 +7,7 @@ import { TestContext } from 'vitest';
 
 const VITEST_CLI = path.join(path.dirname(require.resolve('vitest/package.json')), 'vitest.mjs');
 
-const artifactsDir = path.join(__dirname, 'run-artifacts');
+const artifactsDir = '/tmp/flakiness-vitest';
 
 export async function generateFlakinessReport(ctx: TestContext, files: Record<string, string>) {
   const targetDir = path.join(
@@ -15,6 +15,8 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
     path.relative(__dirname, ctx.task.file.filepath),
     slugify(ctx.task.fullTestName),
   );
+  // Clean up any previous run and create fresh directory.
+  fs.rmSync(targetDir, { recursive: true, force: true });
   fs.mkdirSync(targetDir, { recursive: true });
 
   // Write a minimal vitest config if none is given.
@@ -34,6 +36,11 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });
     fs.writeFileSync(fullPath, content);
   }
+
+  // Initialize a git repo and commit all files.
+  await spawnAsync('git', ['init'], { cwd: targetDir });
+  await spawnAsync('git', ['add', '.'], { cwd: targetDir });
+  await spawnAsync('git', ['commit', '-m', 'staging commit'], { cwd: targetDir });
 
   const reporterPath = path.resolve(__dirname, '..', 'lib', 'reporter.js');
   const result = await spawnAsync(VITEST_CLI, [
