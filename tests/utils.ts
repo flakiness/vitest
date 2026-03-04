@@ -50,9 +50,8 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
 
   // Delete uploads from FLAKINESS_DISABLE_UPLOAD
   process.env.FLAKINESS_DISABLE_UPLOAD = '1';
-  await execSync(`pnpm exec vitest run --no-cache --root=${targetDir} --reporter=${reporterPath} --reporter=default`, {
+  await execSync(`pnpm exec vitest run --no-cache --root=${targetDir} --reporter=${reporterPath}`, {
     cwd: targetDir,
-    stdio: 'inherit',
   });
   delete process.env.FLAKINESS_DISABLE_UPLOAD;
   return readReport(reportDir);
