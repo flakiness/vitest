@@ -88,9 +88,9 @@ export function assertSuites(suites: FlakinessReport.Suite[]|undefined, length: 
   return suites!;
 }
 
-export function assertTests(suite: FlakinessReport.Suite, length: number): FlakinessReport.Test[] {
-  expect(suite.tests?.length ?? 0).toBe(length);
-  return suite.tests!;
+export function assertTests(tests: FlakinessReport.Test[]|undefined, length: number): FlakinessReport.Test[] {
+  expect(tests?.length ?? 0).toBe(length);
+  return tests!;
 }
 
 export function assertAttempts(test: FlakinessReport.Test, length: number): FlakinessReport.RunAttempt[] {

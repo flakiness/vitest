@@ -15,7 +15,7 @@ it('should handle retries', async (ctx) => {
     `
   });
   const [suite] = assertSuites(report.suites, 1);
-  const [test] = assertTests(suite, 1);
+  const [test] = assertTests(suite.tests, 1);
   expect(test.title).toBe('retryretry');
   const [attempt1, attempt2, attempt3] = assertAttempts(test, 3);
   expect(attempt1.status ?? 'passed').toBe('failed');

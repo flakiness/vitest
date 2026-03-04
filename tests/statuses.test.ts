@@ -19,7 +19,7 @@ it('should report statuses', async (ctx) => {
   const [suite] = assertSuites(report.suites, 1);
   expect(suite.title).toBe('sum.test.ts');
 
-  const [passed, failed] = assertTests(suite, 2);
+  const [passed, failed] = assertTests(suite.tests, 2);
   expect(passed.title).toBe('should work');
   expect(failed.title).toBe('should fail');
 
