@@ -4,8 +4,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { TestContext } from 'vitest';
 
-const VITEST_CLI = path.join(path.dirname(require.resolve('vitest/package.json')), 'vitest.mjs');
-
 const artifactsDir = '/tmp/flakiness-vitest';
 
 const DEFAULT_FILES = {
@@ -39,9 +37,6 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
     fs.writeFileSync(fullPath, content);
   }
 
-  const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  const PNPM = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-
   // Initialize a git repo and commit all files.
   await execSync(`git init`, { cwd: targetDir });
   await execSync(`git add .`, { cwd: targetDir });
@@ -55,8 +50,9 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
 
   // Delete uploads from FLAKINESS_DISABLE_UPLOAD
   process.env.FLAKINESS_DISABLE_UPLOAD = '1';
-  await execSync(`${VITEST_CLI} run --no-cache --root=${targetDir} --reporter=${reporterPath}`, {
+  await execSync(`pnpm exec vitest run --no-cache --root=${targetDir} --reporter=${reporterPath} --reporter=default`, {
     cwd: targetDir,
+    stdio: 'inherit',
   });
   delete process.env.FLAKINESS_DISABLE_UPLOAD;
   return readReport(reportDir);

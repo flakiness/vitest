@@ -13,11 +13,12 @@ const log = (txt: string) => console.log(`[flakiness.io] ${txt}`);
 export default class FlakinessReporter implements Reporter {
   private _impl?: ReporterImpl;
 
-  constructor(options: ReportOptions) {
-    this._impl = ReporterImpl.create(process.cwd(), options);
+  constructor(private _options: ReportOptions) {
+    
   }
 
   onInit(vitest: Vitest) {
+    this._impl = ReporterImpl.create(vitest.config.root, this._options);
     this._impl?.onInit(vitest);
   }
 
