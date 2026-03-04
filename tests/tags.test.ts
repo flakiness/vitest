@@ -31,7 +31,6 @@ it.todo('should capture test tags', async (ctx) => {
        */
       it('test-2', { tags: ['smoke'] }, async () => {});
     `,
-
   });
   const [file1, file2] = assertSuites(report.suites, 2);
   const [test1] = assertTests(file1.tests, 1);

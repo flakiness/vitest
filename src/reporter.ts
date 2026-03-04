@@ -10,7 +10,8 @@ const warn = (txt: string) => console.warn(chalk.yellow(`[flakiness.io] ${txt}`)
 const err = (txt: string) => console.error(chalk.red(`[flakiness.io] ${txt}`));
 const log = (txt: string) => console.log(`[flakiness.io] ${txt}`);
 
-//TODO: this should be exported from vitest, but it's not.
+//TODO: the following types must be imported from vitest, but the types
+// are actually unavailable for imports.
 interface UserConsoleLog {
 	content: string;
 	origin?: string;
@@ -20,6 +21,29 @@ interface UserConsoleLog {
 	time: number;
 	size: number;
 }
+interface TestArtifactLocation {
+	/** Line number in the source file (1-indexed) */
+	line: number;
+	/** Column number in the line (1-indexed) */
+	column: number;
+	/** Path to the source file */
+	file: string;
+}
+interface TestAttachment {
+	/** MIME type of the attachment (e.g., 'image/png', 'text/plain') */
+	contentType?: string;
+	/** File system path to the attachment */
+	path?: string;
+	/** Inline attachment content as a string or raw binary data */
+	body?: string | Uint8Array;
+}
+interface TestAnnotation {
+	message: string;
+	type: string;
+	location?: TestArtifactLocation;
+	attachment?: TestAttachment;
+}
+
 
 export default class FKVitestReporter implements Reporter {
   private _impl?: ReporterImpl;
@@ -35,6 +59,14 @@ export default class FKVitestReporter implements Reporter {
     this._impl = ReporterImpl.create(vitest.config.root, this._options);
     this._impl?.onInit(vitest);
   }
+
+	/**
+	* Called when annotation is added via the `task.annotate` API.
+	*/
+	onTestCaseAnnotate(testCase: TestCase, annotation: TestAnnotation) {
+    this._impl?.onTestCaseAnnotate(testCase, annotation);
+  }
+
 
   onTestRunStart() {
     this._impl?.onTestRunStart();
@@ -61,6 +93,7 @@ class ReporterImpl {
   private _startTimestamp: number = Date.now();
   private _tests = new Map<string, FK.Test>();
   private _stdio = new Map<string, UserConsoleLog[]>();
+  private _annotations = new Map<string, TestAnnotation[]>();
 
   private _allSuites = new Map<string, FK.Suite>();
   private _fileSuites = new Map<string, FK.Suite>();
@@ -100,6 +133,15 @@ class ReporterImpl {
       this._stdio.set(log.taskId, entries);
     }
     entries.push(log);
+  }
+
+  onTestCaseAnnotate(testCase: TestCase, annotation: TestAnnotation) {
+    let entries = this._annotations.get(testCase.id);
+    if (!entries) {
+      entries = [];
+      this._annotations.set(testCase.id, entries);
+    }
+    entries.push(annotation);
   }
 
   onTestRunStart() {
@@ -194,6 +236,16 @@ class ReporterImpl {
       }
     });
 
+    const annotations: FK.Annotation[] = (this._annotations.get(testCase.id) ?? []).map(annotation => ({
+      type: annotation.type,
+      description: annotation.message,
+      location: annotation.location ? {
+        file: this._worktree.gitPath(annotation.location.file),
+        line: annotation.location.line as FK.Number1Based,
+        column: annotation.location.column as FK.Number1Based,
+      } : undefined,
+    }));
+
     // Vitest DOES NOT give us per-retry detalization, so we have
     // to synthesize it here.
     // We will do it like this:
@@ -208,6 +260,7 @@ class ReporterImpl {
         // However, vitest doesn't let us do so easily.
         stdio,
         errors,
+        annotations,
       });
     }
 
@@ -221,6 +274,7 @@ class ReporterImpl {
       // However, vitest doesn't let us do so easily.
       stdio,
       errors,
+      annotations
     });
   }
 
