@@ -95,3 +95,8 @@ export function assertAttempts(test: FlakinessReport.Test, length: number): Flak
   expect(test.attempts.length).toBe(length);
   return test.attempts;
 }
+
+export function assertSTDIO(stdio: FlakinessReport.TimedSTDIOEntry[]|undefined, length: number): FlakinessReport.TimedSTDIOEntry[] {
+  expect(stdio?.length).toBe(length);
+  return stdio!;
+}

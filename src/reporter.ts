@@ -1,4 +1,4 @@
-import type { FlakinessReport as FK } from '@flakiness/flakiness-report';
+import { FlakinessReport as FK } from '@flakiness/flakiness-report';
 import { GitWorktree, ReportUtils, uploadReport, writeReport } from '@flakiness/sdk';
 import chalk from 'chalk';
 import assert from 'node:assert';
@@ -10,11 +10,25 @@ const warn = (txt: string) => console.warn(chalk.yellow(`[flakiness.io] ${txt}`)
 const err = (txt: string) => console.error(chalk.red(`[flakiness.io] ${txt}`));
 const log = (txt: string) => console.log(`[flakiness.io] ${txt}`);
 
+//TODO: this should be exported from vitest, but it's not.
+interface UserConsoleLog {
+	content: string;
+	origin?: string;
+	browser?: boolean;
+	type: "stdout" | "stderr";
+	taskId?: string;
+	time: number;
+	size: number;
+}
+
 export default class FKVitestReporter implements Reporter {
   private _impl?: ReporterImpl;
 
   constructor(private _options: ReportOptions) {
-    
+  }
+
+  onUserConsoleLog(log: UserConsoleLog) {
+    this._impl?.onUserConsoleLog(log);
   }
 
   onInit(vitest: Vitest) {
@@ -46,6 +60,8 @@ class ReporterImpl {
   private _vitest!: Vitest;
   private _startTimestamp: number = Date.now();
   private _tests = new Map<string, FK.Test>();
+  private _stdio = new Map<string, UserConsoleLog[]>();
+
   private _allSuites = new Map<string, FK.Suite>();
   private _fileSuites = new Map<string, FK.Suite>();
 
@@ -73,6 +89,17 @@ class ReporterImpl {
 
   onInit(vitest: Vitest) {
     this._vitest = vitest;
+  }
+
+  onUserConsoleLog(log: UserConsoleLog) {
+    if (!log.taskId)
+      return;
+    let entries = this._stdio.get(log.taskId);
+    if (!entries) {
+      entries = [];
+      this._stdio.set(log.taskId, entries);
+    }
+    entries.push(log);
   }
 
   onTestRunStart() {
@@ -112,7 +139,7 @@ class ReporterImpl {
     return suite;
   }
 
-  async onTestCaseResult(testCase: TestCase) {
+  private _ensureTest(testCase: TestCase): FK.Test {
     let fkTest = this._tests.get(testCase.id);
     if (!fkTest) {
       fkTest = {
@@ -129,10 +156,27 @@ class ReporterImpl {
       parent.tests ??= [];
       parent.tests.push(fkTest);
     }
+    return fkTest;
+  }
+
+  async onTestCaseResult(testCase: TestCase) {
+    const fkTest = this._ensureTest(testCase);
     const diag = testCase.diagnostic();
     assert(diag, `Diagnostic must be present in finished test cases`);;
 
     const result = testCase.result();
+
+    const stdio: FK.TimedSTDIOEntry[] = [];
+    let ts = diag.startTime;
+    for (const entry of this._stdio.get(testCase.id) ?? []) {
+      stdio.push({
+        text: entry.content,
+        stream: entry.type === 'stdout' ? FK.STREAM_STDOUT : FK.STREAM_STDERR,
+        dts: (entry.time - ts) as FK.DurationMS,
+      });
+      ts = entry.time;
+    }
+    this._stdio.delete(testCase.id);
 
     // Vitest DOES NOT give us per-retry detalization, so we have
     // to synthesize it here.
@@ -144,11 +188,17 @@ class ReporterImpl {
         startTimestamp: diag.startTime as FK.UnixTimestampMS,
         duration: 0 as FK.DurationMS,
         status: 'failed',
+        // TODO: ideally, we can differentiate STDIO between attempts.
+        // However, vitest doesn't let us do so easily.
+        stdio,
       });
     }
     fkTest.attempts.push({
       startTimestamp: diag.startTime as FK.UnixTimestampMS,
       duration: diag.duration as FK.DurationMS,
+      // TODO: ideally, we can differentiate STDIO between attempts.
+      // However, vitest doesn't let us do so easily.
+      stdio,
       status: result.state === 'failed' ? 'failed' : 
         result.state === 'skipped' ? 'skipped' : 
         'passed',
