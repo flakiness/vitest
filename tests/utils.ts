@@ -91,6 +91,11 @@ export function assertTests(tests: FlakinessReport.Test[]|undefined, length: num
   return tests!;
 }
 
+export function assertTags(tags: string[]|undefined, length: number): string[] {
+  expect(tags?.length ?? 0).toBe(length);
+  return tags!;
+}
+
 export function assertAttempts(test: FlakinessReport.Test, length: number): FlakinessReport.RunAttempt[] {
   expect(test.attempts.length).toBe(length);
   return test.attempts;
