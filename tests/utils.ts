@@ -37,8 +37,11 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
     fs.writeFileSync(fullPath, content);
   }
 
+  const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const PNPM = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+
   // Initialize package.json
-  await spawnAsync('npm', ['init', '-y'], { cwd: targetDir });
+  await spawnAsync(NPM, ['init', '-y'], { cwd: targetDir });
   // Initialize a git repo and commit all files.
   await spawnAsync('git', ['init'], { cwd: targetDir });
   await spawnAsync('git', ['add', '.'], { cwd: targetDir });
@@ -50,7 +53,7 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
     'staging'
   ], { cwd: targetDir });
   // Install vitest
-  await spawnAsync('pnpm', ['install', 'vitest'], { cwd: targetDir });
+  await spawnAsync(PNPM, ['install', 'vitest'], { cwd: targetDir });
   
   const reporterPath = path.resolve(__dirname, '..', 'lib', 'reporter.js');
   await spawnAsync(VITEST_CLI, [
