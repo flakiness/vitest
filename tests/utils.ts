@@ -110,3 +110,7 @@ export function assertSTDIO(stdio: FlakinessReport.TimedSTDIOEntry[]|undefined, 
   expect(stdio?.length).toBe(length);
   return stdio!;
 }
+
+export function assertStatus(status: FlakinessReport.TestStatus|undefined, expected: FlakinessReport.TestStatus) {
+  expect(status ?? 'passed').toBe(expected);
+}

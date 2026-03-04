@@ -203,10 +203,20 @@ class ReporterImpl {
 
   async onTestCaseResult(testCase: TestCase) {
     const fkTest = this._ensureTest(testCase);
+    const result = testCase.result();
+
+    if (result.state === 'skipped') {
+      fkTest.attempts.push({
+        startTimestamp: Date.now() as FK.UnixTimestampMS,
+        duration: 0 as FK.DurationMS,
+        status: 'skipped',
+        expectedStatus: 'skipped',
+      });
+      return;
+    }
+
     const diag = testCase.diagnostic();
     assert(diag, `Diagnostic must be present in finished test cases`);;
-
-    const result = testCase.result();
 
     const stdio: FK.TimedSTDIOEntry[] = [];
     let ts = diag.startTime;
@@ -246,6 +256,10 @@ class ReporterImpl {
       } : undefined,
     }));
 
+
+    const expectedStatus = testCase.options.fails ? 'failed' : 'passed';
+    const oppositeStatus = expectedStatus === 'failed' ? 'passed' : 'failed';
+
     // Vitest DOES NOT give us per-retry detalization, so we have
     // to synthesize it here.
     // We will do it like this:
@@ -255,7 +269,10 @@ class ReporterImpl {
       fkTest.attempts.push({
         startTimestamp: diag.startTime as FK.UnixTimestampMS,
         duration: 0 as FK.DurationMS,
-        status: 'failed',
+        // retries have an opposite status from expected status to
+        // trigger retry.
+        status: oppositeStatus,
+        expectedStatus,
         // TODO: ideally, we can differentiate STDIO between attempts.
         // However, vitest doesn't let us do so easily.
         stdio,
@@ -267,9 +284,8 @@ class ReporterImpl {
     fkTest.attempts.push({
       startTimestamp: diag.startTime as FK.UnixTimestampMS,
       duration: diag.duration as FK.DurationMS,
-      status: result.state === 'failed' ? 'failed' : 
-        result.state === 'skipped' ? 'skipped' : 
-        'passed',
+      status: result.state === 'failed' ? oppositeStatus : expectedStatus,
+      expectedStatus,
       // TODO: ideally, we can differentiate STDIO between attempts.
       // However, vitest doesn't let us do so easily.
       stdio,
