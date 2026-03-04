@@ -38,21 +38,25 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
   }
 
   // Initialize a git repo and commit all files.
-  await execSync(`git init`, { cwd: targetDir });
-  await execSync(`git add .`, { cwd: targetDir });
-  await execSync(`git -c user.email=john@example.com -c user.name=john commit -m staging`, {
+  execSync(`git init`, { cwd: targetDir });
+  execSync(`git add .`, { cwd: targetDir });
+  execSync(`git -c user.email=john@example.com -c user.name=john commit -m staging`, {
     cwd: targetDir
   });
   // Install vitest
-  await execSync(`pnpm install vitest`, { cwd: targetDir });
+  execSync(`pnpm install vitest`, { cwd: targetDir });
   
   const reporterPath = path.resolve(__dirname, '..', 'lib', 'reporter.js');
 
   // Delete uploads from FLAKINESS_DISABLE_UPLOAD
   process.env.FLAKINESS_DISABLE_UPLOAD = '1';
-  await execSync(`pnpm exec vitest run --no-cache --root=${targetDir} --reporter=${reporterPath}`, {
-    cwd: targetDir,
-  });
+  try {
+    execSync(`pnpm exec vitest run --no-cache --root=${targetDir} --reporter=${reporterPath}`, {
+      cwd: targetDir,
+    })
+  } catch (e) {
+    // vitest will fail if some tests fail.
+  }
   delete process.env.FLAKINESS_DISABLE_UPLOAD;
   return readReport(reportDir);
 }
