@@ -37,13 +37,23 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
     fs.writeFileSync(fullPath, content);
   }
 
+  // Initialize package.json
+  await spawnAsync('npm', ['init', '-y'], { cwd: targetDir });
   // Initialize a git repo and commit all files.
   await spawnAsync('git', ['init'], { cwd: targetDir });
   await spawnAsync('git', ['add', '.'], { cwd: targetDir });
-  await spawnAsync('git', ['commit', '-m', 'staging commit'], { cwd: targetDir });
-
+  await spawnAsync('git', [
+    '-c', 'user.email=john@example.com',
+    '-c', 'user.name=john',
+    'commit', 
+    '-m',
+    'staging'
+  ], { cwd: targetDir });
+  // Install vitest
+  await spawnAsync('pnpm', ['install', 'vitest'], { cwd: targetDir });
+  
   const reporterPath = path.resolve(__dirname, '..', 'lib', 'reporter.js');
-  const result = await spawnAsync(VITEST_CLI, [
+  await spawnAsync(VITEST_CLI, [
     `run`,
     `--no-cache`,
     `--root=${targetDir}`,
@@ -61,6 +71,7 @@ type SpawnResult = {
 };
 
 function spawnAsync(cmd: string, args: string[], options: SpawnOptions = {}): Promise<SpawnResult> {
+  // console.log(`${cmd} ${args.join(' ')}`)
   const process = spawn(cmd, args, Object.assign({ windowsHide: true }, options));
 
   return new Promise((resolve, reject) => {
