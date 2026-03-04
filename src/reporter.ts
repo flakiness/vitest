@@ -178,6 +178,22 @@ class ReporterImpl {
     }
     this._stdio.delete(testCase.id);
 
+    const testFile = this._worktree.gitPath(testCase.module.moduleId);
+    const errors: FK.ReportError[] = (result.errors ?? []).map(error => {
+      // Find a frame that is either in the test file, or the first outside of node_modules.
+      const frame = error.stacks?.find(frame => this._worktree.gitPath(frame.file) === testFile) ??
+        error.stacks?.find(frame => !frame.file.includes('node_modules'));
+      return {
+        message: error.message,
+        stack: error.stack,
+        location: frame ? {
+          file: this._worktree.gitPath(frame.file),
+          line: frame.line as FK.Number1Based,
+          column: frame.column as FK.Number1Based,
+        } : undefined,
+      }
+    });
+
     // Vitest DOES NOT give us per-retry detalization, so we have
     // to synthesize it here.
     // We will do it like this:
@@ -191,17 +207,20 @@ class ReporterImpl {
         // TODO: ideally, we can differentiate STDIO between attempts.
         // However, vitest doesn't let us do so easily.
         stdio,
+        errors,
       });
     }
+
     fkTest.attempts.push({
       startTimestamp: diag.startTime as FK.UnixTimestampMS,
       duration: diag.duration as FK.DurationMS,
-      // TODO: ideally, we can differentiate STDIO between attempts.
-      // However, vitest doesn't let us do so easily.
-      stdio,
       status: result.state === 'failed' ? 'failed' : 
         result.state === 'skipped' ? 'skipped' : 
         'passed',
+      // TODO: ideally, we can differentiate STDIO between attempts.
+      // However, vitest doesn't let us do so easily.
+      stdio,
+      errors,
     });
   }
 
