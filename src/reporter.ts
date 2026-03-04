@@ -131,6 +131,7 @@ class ReporterImpl {
     const environment = ReportUtils.createEnvironment({ name: 'default' });
     const duration = (Date.now() - this._startTimestamp) as FK.DurationMS;
     const report: FK.Report = ReportUtils.normalizeReport({
+      flakinessProject: this._options.flakinessProject,
       category: 'vitest',
       commitId: this._commitId,
       environments: [environment],
