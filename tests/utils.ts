@@ -46,7 +46,7 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
   // Initialize a git repo and commit all files.
   execSync(`git init`, { cwd: targetDir });
   execSync(`git add .`, { cwd: targetDir });
-  execSync(`git -c user.email=john@example.com -c user.name=john commit -m staging`, {
+  execSync(`git -c user.email=john@example.com -c user.name=john -c commit.gpgsign=false commit -m staging`, {
     cwd: targetDir
   });
 
