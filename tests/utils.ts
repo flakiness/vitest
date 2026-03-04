@@ -56,6 +56,9 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
   await spawnAsync(PNPM, ['install', 'vitest'], { cwd: targetDir });
   
   const reporterPath = path.resolve(__dirname, '..', 'lib', 'reporter.js');
+  
+  // Delete uploads from FLAKINESS_DISABLE_UPLOAD
+  process.env.FLAKINESS_DISABLE_UPLOAD = '1';
   await spawnAsync(VITEST_CLI, [
     `run`,
     `--no-cache`,
@@ -64,6 +67,7 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
   ], {
     cwd: targetDir,
   });
+  delete process.env.FLAKINESS_DISABLE_UPLOAD;
   return readReport(reportDir);
 }
 

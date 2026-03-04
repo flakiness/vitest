@@ -1,5 +1,5 @@
 import type { FlakinessReport as FK } from '@flakiness/flakiness-report';
-import { GitWorktree, ReportUtils, writeReport } from '@flakiness/sdk';
+import { GitWorktree, ReportUtils, uploadReport, writeReport } from '@flakiness/sdk';
 import chalk from 'chalk';
 import assert from 'node:assert';
 import path from 'node:path';
@@ -11,11 +11,64 @@ const err = (txt: string) => console.error(chalk.red(`[flakiness.io] ${txt}`));
 const log = (txt: string) => console.log(`[flakiness.io] ${txt}`);
 
 export default class FlakinessReporter implements Reporter {
+  private _impl?: ReporterImpl;
+
+  constructor(options: ReportOptions) {
+    this._impl = ReporterImpl.create(process.cwd(), options);
+  }
+
+  onInit(vitest: Vitest) {
+    this._impl?.onInit(vitest);
+  }
+
+  onTestRunStart() {
+    this._impl?.onTestRunStart();
+  }
+
+  async onTestCaseResult(testCase: TestCase) {
+    this._impl?.onTestCaseResult(testCase);
+  }
+
+  async onTestRunEnd(testModules: ReadonlyArray<TestModule>) {
+    this._impl?.onTestRunEnd(testModules);
+  }
+}
+
+type ReportOptions = {
+  flakinessProject?: string,
+  endpoint?: string,
+  token?: string,
+  outputFolder?: string,
+}
+
+class ReporterImpl {
   private _vitest!: Vitest;
   private _startTimestamp: number = Date.now();
   private _tests = new Map<string, FK.Test>();
   private _allSuites = new Map<string, FK.Suite>();
   private _fileSuites = new Map<string, FK.Suite>();
+
+  static create(rootPath: string, options: ReportOptions) {
+    let commitId: FK.CommitId;
+    let worktree: GitWorktree;
+    try {
+      worktree = GitWorktree.create(rootPath);
+      commitId = worktree.headCommitId();
+      return new ReporterImpl(worktree, commitId, options);
+    } catch (e) {
+      warn(`Failed to fetch commit info - is this a git repo?`);
+      err(`Report is NOT generated.`);
+      return;
+    }
+  }
+
+  constructor(
+    private _worktree: GitWorktree,
+    private _commitId: FK.CommitId,
+    private _options: ReportOptions
+  ) {
+
+  }
 
   onInit(vitest: Vitest) {
     this._vitest = vitest;
@@ -74,33 +127,25 @@ export default class FlakinessReporter implements Reporter {
   }
 
   async onTestRunEnd(testModules: ReadonlyArray<TestModule>) {
-    let commitId: FK.CommitId;
-    let worktree: GitWorktree;
-    try {
-      worktree = GitWorktree.create(process.cwd());
-      commitId = worktree.headCommitId()
-    } catch (e) {
-      warn(`Failed to fetch commit info - is this a git repo?`);
-      err(`Report is NOT generated.`);
-      return;
-    }
-
     const environment = ReportUtils.createEnvironment({ name: 'default' });
     const duration = (Date.now() - this._startTimestamp) as FK.DurationMS;
     const report: FK.Report = ReportUtils.normalizeReport({
       category: 'vitest',
-      commitId,
+      commitId: this._commitId,
       environments: [environment],
       startTimestamp: this._startTimestamp as FK.UnixTimestampMS,
       duration,
       suites: Array.from(this._fileSuites.values()),
     });
-    await ReportUtils.collectSources(worktree, report);
+    await ReportUtils.collectSources(this._worktree, report);
 
     const outputFolder = path.join(
       process.cwd(),
       process.env.FLAKINESS_OUTPUT_DIR ?? 'flakiness-report',
     );
     await writeReport(report, [], outputFolder);
+
+    if (!process.env.FLAKINESS_DISABLE_UPLOAD)
+      await uploadReport(report, []);
   }
 }
