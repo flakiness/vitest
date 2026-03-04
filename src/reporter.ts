@@ -10,7 +10,7 @@ const warn = (txt: string) => console.warn(chalk.yellow(`[flakiness.io] ${txt}`)
 const err = (txt: string) => console.error(chalk.red(`[flakiness.io] ${txt}`));
 const log = (txt: string) => console.log(`[flakiness.io] ${txt}`);
 
-export default class FlakinessReporter implements Reporter {
+export default class FKVitestReporter implements Reporter {
   private _impl?: ReporterImpl;
 
   constructor(private _options: ReportOptions) {
@@ -118,6 +118,19 @@ class ReporterImpl {
     assert(diag, `Diagnostic must be present in finished test cases`);;
 
     const result = testCase.result();
+
+    // Vitest DOES NOT give us per-retry detalization, so we have
+    // to synthesize it here.
+    // We will do it like this:
+    // - we will have X retries, all with status "failed" and duration = 0
+    // - the last retry will be "passed"
+    for (let i = 0; i < diag.retryCount; ++i) {
+      fkTest.attempts.push({
+        startTimestamp: diag.startTime as FK.UnixTimestampMS,
+        duration: 0 as FK.DurationMS,
+        status: 'failed',
+      });
+    }
     fkTest.attempts.push({
       startTimestamp: diag.startTime as FK.UnixTimestampMS,
       duration: diag.duration as FK.DurationMS,
@@ -140,8 +153,7 @@ class ReporterImpl {
       suites: Array.from(this._fileSuites.values()),
     });
     await ReportUtils.collectSources(this._worktree, report);
-
-    const outputFolder = path.join(
+    const outputFolder = this._options.outputFolder ?? path.join(
       process.cwd(),
       process.env.FLAKINESS_OUTPUT_DIR ?? 'flakiness-report',
     );
