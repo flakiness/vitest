@@ -4,8 +4,10 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect, TestContext } from 'vitest';
+import { startVitest } from 'vitest/node';
+import FKVitestReporter from '../src/reporter';
 
-const artifactsDir = '/tmp/flakiness-vitest';
+export const ARTIFACTS_DIR = '/tmp/flakiness-vitest';
 
 const DEFAULT_FILES = {
   'vitest.config.ts': `
@@ -20,14 +22,13 @@ const DEFAULT_FILES = {
 
 export async function generateFlakinessReport(ctx: TestContext, files: Record<string, string>) {
   const targetDir = path.join(
-    artifactsDir,
+    ARTIFACTS_DIR,
     path.relative(__dirname, ctx.task.file.filepath),
     slugify(ctx.task.fullTestName),
   );
   // Clean up any previous run and create fresh directory.
   fs.rmSync(targetDir, { recursive: true, force: true });
   fs.mkdirSync(targetDir, { recursive: true });
-
 
   const reportDir = path.join(targetDir, 'flakiness-report');
 
@@ -44,21 +45,30 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
   execSync(`git -c user.email=john@example.com -c user.name=john commit -m staging`, {
     cwd: targetDir
   });
-  // Install vitest
-  execSync(`pnpm install vitest`, { cwd: targetDir });
-  
-  const reporterPath = path.resolve(__dirname, '..', 'lib', 'reporter.js');
 
-  // Delete uploads from FLAKINESS_DISABLE_UPLOAD
-  process.env.FLAKINESS_DISABLE_UPLOAD = '1';
-  try {
-    execSync(`pnpm exec vitest run --no-cache --root=${targetDir} --reporter=${reporterPath}`, {
-      cwd: targetDir,
-    })
-  } catch (e) {
-    // vitest will fail if some tests fail.
-  }
-  delete process.env.FLAKINESS_DISABLE_UPLOAD;
+  // Install vitest
+  const reporter = new FKVitestReporter({
+    outputFolder: reportDir,
+  });
+  const vitest = await startVitest(
+    'test',
+    // Optional filters (like --dir / pattern). Keep empty to run everything under root.
+    [],
+    // CLI-ish overrides:
+    {
+      root: targetDir,
+      config: false,
+      watch: false,
+      reporters: [reporter], // <-- inject instance
+      // These options correspond to flags you used:
+      // (Vitest doesn't have a perfect 1:1 for every CLI flag; see note below)
+      clearScreen: false,
+      // If you want to be extra deterministic:
+      // isolate: true,
+      fileParallelism: false,
+    },
+  );
+  await vitest?.close();
   return readReport(reportDir);
 }
 

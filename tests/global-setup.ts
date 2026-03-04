@@ -1,7 +1,6 @@
 import fs from 'node:fs';
-import path from 'node:path';
+import { ARTIFACTS_DIR } from './utils';
 
 export function setup() {
-  const artifactsDir = path.join(__dirname, 'run-artifacts');
-  fs.rmSync(artifactsDir, { recursive: true, force: true });
+  fs.rmSync(ARTIFACTS_DIR, { recursive: true, force: true });
 }
