@@ -203,10 +203,18 @@ class ReporterImpl {
 
   async onTestCaseResult(testCase: TestCase) {
     const fkTest = this._ensureTest(testCase);
-    const diag = testCase.diagnostic();
-    assert(diag, `Diagnostic must be present in finished test cases`);;
-
     const result = testCase.result();
+    const diag = testCase.diagnostic();
+
+    // Skipped and todo tests have no diagnostic information since they never run.
+    if (!diag) {
+      fkTest.attempts.push({
+        startTimestamp: this._startTimestamp as FK.UnixTimestampMS,
+        duration: 0 as FK.DurationMS,
+        status: 'skipped',
+      });
+      return;
+    }
 
     const stdio: FK.TimedSTDIOEntry[] = [];
     let ts = diag.startTime;
@@ -246,6 +254,8 @@ class ReporterImpl {
       } : undefined,
     }));
 
+    const expectedStatus: FK.TestStatus | undefined = testCase.options.fails ? 'failed' : undefined;
+
     // Vitest DOES NOT give us per-retry detalization, so we have
     // to synthesize it here.
     // We will do it like this:
@@ -256,6 +266,7 @@ class ReporterImpl {
         startTimestamp: diag.startTime as FK.UnixTimestampMS,
         duration: 0 as FK.DurationMS,
         status: 'failed',
+        expectedStatus,
         // TODO: ideally, we can differentiate STDIO between attempts.
         // However, vitest doesn't let us do so easily.
         stdio,
@@ -267,9 +278,10 @@ class ReporterImpl {
     fkTest.attempts.push({
       startTimestamp: diag.startTime as FK.UnixTimestampMS,
       duration: diag.duration as FK.DurationMS,
-      status: result.state === 'failed' ? 'failed' : 
-        result.state === 'skipped' ? 'skipped' : 
+      status: result.state === 'failed' ? 'failed' :
+        result.state === 'skipped' ? 'skipped' :
         'passed',
+      expectedStatus,
       // TODO: ideally, we can differentiate STDIO between attempts.
       // However, vitest doesn't let us do so easily.
       stdio,

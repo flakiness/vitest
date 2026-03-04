@@ -15,8 +15,7 @@ export const ARTIFACTS_DIR = process.platform === 'darwin' ? '/private/tmp/flaki
 
 const DEFAULT_FILES = {
   'vitest.config.ts': `
-    import { defineConfig } from 'vitest/config';
-    export default defineConfig({});
+    export default {};
   `,
   'package.json': JSON.stringify({
     'name': 'my-package',
@@ -46,7 +45,7 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
   // Initialize a git repo and commit all files.
   execSync(`git init`, { cwd: targetDir });
   execSync(`git add .`, { cwd: targetDir });
-  execSync(`git -c user.email=john@example.com -c user.name=john commit -m staging`, {
+  execSync(`git -c user.email=john@example.com -c user.name=john -c commit.gpgsign=false commit -m staging`, {
     cwd: targetDir
   });
 
