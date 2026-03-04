@@ -88,6 +88,11 @@ class ReporterImpl {
       suite = {
         type: 'suite',
         title: p.name,
+        location: p.location ? {
+          file: this._worktree.gitPath(p.module.moduleId),
+          column: p.location.column as FK.Number1Based,
+          line: p.location.line as FK.Number1Based,
+        } : undefined,
       };
       parent.suites ??= [];
       parent.suites.push(suite);
@@ -95,6 +100,11 @@ class ReporterImpl {
       suite = {
         type: 'file',
         title: p.relativeModuleId,
+        location: {
+          file: this._worktree.gitPath(p.moduleId),
+          column: 0 as FK.Number1Based,
+          line: 0 as FK.Number1Based,
+        },
       };
       this._fileSuites.set(p.id, suite);
     }
@@ -108,6 +118,11 @@ class ReporterImpl {
       fkTest = {
         attempts: [],
         title: testCase.name,
+        location: testCase.location ? {
+          file: this._worktree.gitPath(testCase.module.moduleId),
+          column: testCase.location.column as FK.Number1Based,
+          line: testCase.location.line as FK.Number1Based,
+        } : undefined,
       }
       this._tests.set(testCase.id, fkTest);
       const parent = this._ensureFKSuite(testCase.parent);

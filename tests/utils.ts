@@ -7,7 +7,11 @@ import { expect, TestContext } from 'vitest';
 import { startVitest } from 'vitest/node';
 import FKVitestReporter from '../src/reporter';
 
-export const ARTIFACTS_DIR = '/tmp/flakiness-vitest';
+// On MacOS, the /tmp is a symlink to /private/tmp. This results
+// in stack traces using `/private/tmp`. This confuses ViTest
+// location parser, so our location tests fails.
+// To workaround, we explicitly use `/private/tmp` on mac.
+export const ARTIFACTS_DIR = process.platform === 'darwin' ? '/private/tmp/flakiness-vitest' : '/tmp/flakiness-vitest';
 
 const DEFAULT_FILES = {
   'vitest.config.ts': `
@@ -34,7 +38,7 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
 
   // Write test files into the tmp folder.
   for (const [filePath, content] of Object.entries({ ...DEFAULT_FILES, ...files })) {
-    const fullPath = path.join(targetDir, filePath);
+    const fullPath = path.join(targetDir, ...filePath.split('/'));
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });
     fs.writeFileSync(fullPath, content);
   }
@@ -52,19 +56,13 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
   });
   const vitest = await startVitest(
     'test',
-    // Optional filters (like --dir / pattern). Keep empty to run everything under root.
     [],
-    // CLI-ish overrides:
     {
       root: targetDir,
-      config: false,
+      config: path.join(targetDir, 'vitest.config.ts'),
       watch: false,
-      reporters: [reporter], // <-- inject instance
-      // These options correspond to flags you used:
-      // (Vitest doesn't have a perfect 1:1 for every CLI flag; see note below)
+      reporters: [reporter], 
       clearScreen: false,
-      // If you want to be extra deterministic:
-      // isolate: true,
       fileParallelism: false,
     },
   );

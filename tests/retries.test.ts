@@ -12,13 +12,17 @@ it('should handle retries', async (ctx) => {
         await new Promise(x => setTimeout(x, 500));
         expect(attempt).toBeGreaterThan(2);
       });
+
+      it('noretry', async () => { });
     `
   });
   const [suite] = assertSuites(report.suites, 1);
-  const [test] = assertTests(suite.tests, 1);
-  expect(test.title).toBe('retryretry');
-  const [attempt1, attempt2, attempt3] = assertAttempts(test, 3);
+  const [testWithRetries, testNoRetry] = assertTests(suite.tests, 2);
+  expect(testWithRetries.title).toBe('retryretry');
+  const [attempt1, attempt2, attempt3] = assertAttempts(testWithRetries, 3);
   expect(attempt1.status ?? 'passed').toBe('failed');
   expect(attempt2.status ?? 'passed').toBe('failed');
   expect(attempt3.status ?? 'passed').toBe('passed');
+
+  assertAttempts(testNoRetry, 1);
 });
