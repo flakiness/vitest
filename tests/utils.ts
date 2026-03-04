@@ -1,8 +1,9 @@
+import { FlakinessReport } from '@flakiness/flakiness-report';
 import { readReport } from '@flakiness/sdk';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { TestContext } from 'vitest';
+import { expect, TestContext } from 'vitest';
 
 const artifactsDir = '/tmp/flakiness-vitest';
 
@@ -70,4 +71,19 @@ function slugify(text: string) {
     // Trim leading/trailing dash
     .replace(/^-|-$/g, '')
     .toLowerCase();
+}
+
+export function assertSuites(suites: FlakinessReport.Suite[]|undefined, length: number): FlakinessReport.Suite[] {
+  expect(suites?.length ?? 0).toBe(length);
+  return suites!;
+}
+
+export function assertTests(suite: FlakinessReport.Suite, length: number): FlakinessReport.Test[] {
+  expect(suite.tests?.length ?? 0).toBe(length);
+  return suite.tests!;
+}
+
+export function assertAttempts(test: FlakinessReport.Test, length: number): FlakinessReport.RunAttempt[] {
+  expect(test.attempts.length).toBe(length);
+  return test.attempts;
 }
