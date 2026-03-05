@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { expect, TestContext } from 'vitest';
 import { startVitest } from 'vitest/node';
-import FKVitestReporter from '../src/reporter';
+import FKVitestReporter, { FKVitestReporterOptions } from '../src/reporter';
 
 // On MacOS, the /tmp is a symlink to /private/tmp. This results
 // in stack traces using `/private/tmp`. This confuses ViTest
@@ -24,7 +24,7 @@ const DEFAULT_FILES = {
   }),
 }
 
-export async function generateFlakinessReport(ctx: TestContext, files: Record<string, string>) {
+export async function generateFlakinessReport(ctx: TestContext, files: Record<string, string>, options?: FKVitestReporterOptions) {
   const targetDir = path.join(
     ARTIFACTS_DIR,
     path.relative(__dirname, ctx.task.file.filepath),
@@ -50,9 +50,12 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
     cwd: targetDir
   });
 
-  // Install vitest
   const reporter = new FKVitestReporter({
+    ...(options ?? {}),
     outputFolder: reportDir,
+    disableUpload: true,
+    open: 'never',
+    quiet: true,
   });
   const vitest = await startVitest(
     'test',
