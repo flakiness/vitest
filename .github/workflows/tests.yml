@@ -30,6 +30,9 @@ jobs:
           node-version: lts/*
           cache: pnpm
 
+      # Since tests initialize git repositories, we have
+      # to configure git to avoid warnings.
+      - run: git config --global init.defaultBranch main
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test:run
