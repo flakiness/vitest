@@ -19,28 +19,6 @@ interface UserConsoleLog {
   time: number;
   size: number;
 }
-interface TestArtifactLocation {
-  /** Line number in the source file (1-indexed) */
-  line: number;
-  /** Column number in the line (1-indexed) */
-  column: number;
-  /** Path to the source file */
-  file: string;
-}
-interface TestAttachment {
-  /** MIME type of the attachment (e.g., 'image/png', 'text/plain') */
-  contentType?: string;
-  /** File system path to the attachment */
-  path?: string;
-  /** Inline attachment content as a string or raw binary data */
-  body?: string | Uint8Array;
-}
-interface TestAnnotation {
-  message: string;
-  type: string;
-  location?: TestArtifactLocation;
-  attachment?: TestAttachment;
-}
 
 export type OpenMode = 'always' | 'never' | 'on-failure';
 
