@@ -1,10 +1,10 @@
 import { expect, it } from 'vitest';
-import { assertCount, generateFlakinessReport } from './utils';
+import { assertCount, assertStatus, generateFlakinessReport } from './utils';
 
 /**
  * Since vitest allows duplicate test names,
  * and Flakiness.io doesn't, we need to make sure that reporter
- * renames duplicates.
+ * handles the duplicates.
  */
 it('should rename duplicate test names', async (ctx) => {
   const { report, log } = await generateFlakinessReport(ctx, {
@@ -17,12 +17,21 @@ it('should rename duplicate test names', async (ctx) => {
     `
   });
   const [suite] = assertCount(report.suites, 1);
-  const [test1, test2, test3] = assertCount(suite.tests, 3);
+  const [test1] = assertCount(suite.tests, 1);
   expect(test1.title).toBe('should work');
-  expect(test2.title).toBe('should work – dupe #2');
-  expect(test3.title).toBe('should work – dupe #3');
+  const [attempt] = assertCount(test1.attempts, 1);
+  assertStatus(attempt.status, 'failed');
 
-  const [warnMsg] = assertCount(log.warns, 1);
-  expect(warnMsg).toContain('3 duplicates detected');
-  expect(warnMsg).toContain('sum.test.ts > should work');
+  const [error] = assertCount(attempt.errors, 1);
+  expect(error.message).toContain('3 tests');
+  expect(error.message).toContain('sum.test.ts > should work');
+
+  const [annotation] = assertCount(attempt.annotations, 1);
+  expect(annotation.type).toBe('duplicates');
+  expect(annotation.description).toContain('3 tests');
+  expect(annotation.description).toContain('sum.test.ts > should work');
+
+  const allWarns = log.warns.join('\n');
+  expect(allWarns).toContain('3 tests');
+  expect(allWarns).toContain('sum.test.ts > should work');
 });
