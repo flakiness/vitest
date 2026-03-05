@@ -1,5 +1,5 @@
 import { FlakinessReport as FK } from '@flakiness/flakiness-report';
-import { CPUUtilization, GitWorktree, RAMUtilization, ReportUtils, showReport, uploadReport, writeReport } from '@flakiness/sdk';
+import { CIUtils, CPUUtilization, GitWorktree, RAMUtilization, ReportUtils, showReport, uploadReport, writeReport } from '@flakiness/sdk';
 import type { ParsedStack } from '@vitest/utils';
 import chalk from 'chalk';
 import assert from 'node:assert';
@@ -78,7 +78,6 @@ export default class FKVitestReporter implements Reporter {
 	onTestCaseAnnotate(testCase: TestCase, annotation: TestAnnotation) {
     this._impl?.onTestCaseAnnotate(testCase, annotation);
   }
-
 
   onTestRunStart() {
     this._impl?.onTestRunStart();
@@ -338,6 +337,7 @@ class ReporterImpl {
 
     const duration = (Date.now() - this._startTimestamp) as FK.DurationMS;
     const report: FK.Report = ReportUtils.normalizeReport({
+      url: CIUtils.runUrl(),
       flakinessProject: this._options.flakinessProject,
       category: 'vitest',
       configPath: this._configPath ? this._worktree.gitPath(this._configPath) : undefined,
