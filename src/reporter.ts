@@ -89,14 +89,19 @@ type ReportOptions = {
 }
 
 class ReporterImpl {
-  private _vitest!: Vitest;
   private _startTimestamp: number = Date.now();
   private _tests = new Map<string, FK.Test>();
   private _stdio = new Map<string, UserConsoleLog[]>();
   private _annotations = new Map<string, TestAnnotation[]>();
 
+  // In Vitest, all projects MUST HAVE UNIQUE NAMES.
+  // So we create environments per project name.
+  private _environments: FK.Environment[] = [];
+
   private _allSuites = new Map<string, FK.Suite>();
   private _fileSuites = new Map<string, FK.Suite>();
+
+  private _configPath?: string;
 
   static create(rootPath: string, options: ReportOptions) {
     let commitId: FK.CommitId;
@@ -121,7 +126,7 @@ class ReporterImpl {
   }
 
   onInit(vitest: Vitest) {
-    this._vitest = vitest;
+    this._configPath = vitest.config.config;
   }
 
   onUserConsoleLog(log: UserConsoleLog) {
@@ -201,12 +206,25 @@ class ReporterImpl {
     return fkTest;
   }
 
+  private _ensureEnvironmentIdx(testCase: TestCase) {
+    let idx = this._environments.findIndex(env => env.name === testCase.project.name);
+    if (idx === -1) {
+      idx = this._environments.length;
+      this._environments.push(ReportUtils.createEnvironment({
+        name: testCase.project.name,
+      }));
+    }
+    return idx;
+  }
+
   async onTestCaseResult(testCase: TestCase) {
+    const environmentIdx = this._ensureEnvironmentIdx(testCase);
     const fkTest = this._ensureTest(testCase);
     const result = testCase.result();
 
     if (result.state === 'skipped') {
       fkTest.attempts.push({
+        environmentIdx,
         startTimestamp: Date.now() as FK.UnixTimestampMS,
         duration: 0 as FK.DurationMS,
         status: 'skipped',
@@ -267,6 +285,7 @@ class ReporterImpl {
     // - the last retry will be "passed"
     for (let i = 0; i < diag.retryCount; ++i) {
       fkTest.attempts.push({
+        environmentIdx,
         startTimestamp: diag.startTime as FK.UnixTimestampMS,
         duration: 0 as FK.DurationMS,
         // retries have an opposite status from expected status to
@@ -282,6 +301,7 @@ class ReporterImpl {
     }
 
     fkTest.attempts.push({
+      environmentIdx,
       startTimestamp: diag.startTime as FK.UnixTimestampMS,
       duration: diag.duration as FK.DurationMS,
       status: result.state === 'failed' ? oppositeStatus : expectedStatus,
@@ -295,13 +315,13 @@ class ReporterImpl {
   }
 
   async onTestRunEnd(testModules: ReadonlyArray<TestModule>) {
-    const environment = ReportUtils.createEnvironment({ name: 'default' });
     const duration = (Date.now() - this._startTimestamp) as FK.DurationMS;
     const report: FK.Report = ReportUtils.normalizeReport({
       flakinessProject: this._options.flakinessProject,
       category: 'vitest',
+      configPath: this._configPath ? this._worktree.gitPath(this._configPath) : undefined,
       commitId: this._commitId,
-      environments: [environment],
+      environments: this._environments,
       startTimestamp: this._startTimestamp as FK.UnixTimestampMS,
       duration,
       suites: Array.from(this._fileSuites.values()),
