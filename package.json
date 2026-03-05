@@ -2,7 +2,7 @@
   "name": "@flakiness/vitest",
   "version": "0.1.0-alpha.0",
   "description": "",
-  "main": "index.js",
+  "main": "lib/reporter.js",
   "scripts": {
     "build": "kubik build.mts",
     "test": "vitest",
