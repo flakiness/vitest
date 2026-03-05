@@ -372,6 +372,7 @@ class ReporterImpl {
         while (testIdToTests.has(testId + dupeSuffix(dupeIndex)))
           ++dupeIndex;
         tests[i].title += dupeSuffix(dupeIndex);
+        testIdToTests.set(testId + dupeSuffix(dupeIndex), [tests[i]]);
       }
     }
   }

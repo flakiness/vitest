@@ -13,10 +13,12 @@ it('should rename duplicate test names', async (ctx) => {
 
       it('should work', async (ctx) => { });
       it('should work', async (ctx) => { });
+      it('should work', async (ctx) => { });
     `
   });
   const [suite] = assertCount(report.suites, 1);
-  const [test1, test2] = assertCount(suite.tests, 2);
+  const [test1, test2, test3] = assertCount(suite.tests, 3);
   expect(test1.title).toBe('should work');
   expect(test2.title).toBe('should work – dupe #2');
+  expect(test3.title).toBe('should work – dupe #3');
 });
