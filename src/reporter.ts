@@ -383,28 +383,55 @@ class ReporterImpl {
       return;
 
     // Auto-rename duplicates.
+    const warnMessages: string[] = [];
     for (const [testId, tests] of testIdToTests) {
       if (tests.length <= 1)
         continue;
 
       const testFullName = testFullNames.get(tests[0])!;
-      this._logger.warn(`[flakiness.io] ⚠ ${tests.length} duplicates detected: ${testFullName}`);
+      const warnMessage = `${tests.length} tests: ${testFullName}`;
+      warnMessages.push(warnMessage);
 
-      // Sort tests according to their vitest identifier.
-      tests.sort((test1, test2) => {
-        const id1 = this._testToTestCaseId.get(test1)!;
-        const id2 = this._testToTestCaseId.get(test2)!;
-        return id1 < id2 ? -1 : id1 > id2 ? 1 : 0;
-      });
+      // Fail every test in every duped environment, make sure to fail it with
+      // a duplication error and annotation.
 
-      // Add dupe suffixes to duplicated tests.
-      let dupeIndex = 2;
-      for (let i = 1; i < tests.length; ++i) {
-        while (testIdToTests.has(testId + dupeSuffix(dupeIndex)))
-          ++dupeIndex;
-        tests[i].title += dupeSuffix(dupeIndex);
-        testIdToTests.set(testId + dupeSuffix(dupeIndex), [tests[i]]);
-      }
+      // The first test gets a failed attempt with annotation and error aboud
+      // duplicate tests.
+      const test = tests[0];
+      const envs = new Set(test.attempts.map(a => a.environmentIdx ?? 0));
+      test.attempts = Array.from(envs).map(envIdx => ({
+        environmentIdx: envIdx,
+        startTimestamp: Date.now() as FK.UnixTimestampMS,
+        duration: 0 as FK.DurationMS,
+        expectedStatus: 'passed',
+        status: 'failed',
+        errors: [{
+          message: [
+            `Flakiness.io detected ${tests.length} tests with identical full name "${testFullName}"`,
+            `Please rename tests to ensure they all have unique full names.`
+          ].join('\n'),
+        }],
+        annotations: [{
+          type: 'duplicates',
+          description: [
+            `Flakiness.io failed to process this test because there are ${tests.length} tests with`,
+            `identical full name: "${testFullName}".`,
+            `Please make sure that all your tests have unique full names.`,
+          ].join('\n'),
+        }]
+      }));
+
+      // All other tests get stripped of their attempts.
+      // This results in a single attempt for the test in the Flakiness report.
+      for (let i = 1; i < tests.length; ++i)
+        tests[i].attempts = [];
+    }
+
+    if (warnMessages.length) {
+      this._logger.warn(`[flakiness.io] ⚠ Detected test with duplicate names!`);
+      for (const warnMessage of warnMessages)
+        this._logger.warn(`[flakiness.io] - ${warnMessage}`);
+      this._logger.warn(`[flakiness.io] Please rename tests so that they all have unique full names.`);
     }
   }
 
