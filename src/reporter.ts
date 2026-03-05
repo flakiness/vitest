@@ -2,6 +2,7 @@ import { FlakinessReport as FK } from '@flakiness/flakiness-report';
 import { CIUtils, CPUUtilization, GitWorktree, RAMUtilization, ReportUtils, showReport, uploadReport, writeReport } from '@flakiness/sdk';
 import type { ParsedStack } from '@vitest/utils';
 import chalk from 'chalk';
+import crypto from 'crypto';
 import assert from 'node:assert';
 import path from 'node:path';
 import type { SerializedError, TestCase, TestModule, TestRunEndReason, TestSuite, Vitest } from 'vitest/node';
@@ -204,6 +205,7 @@ class ReporterImpl {
   private _ensureTest(testCase: TestCase): FK.Test {
     let fkTest = this._tests.get(testCase.id);
     if (!fkTest) {
+      console.log(`testCase.id: ${testCase.id}`);
       fkTest = {
         attempts: [],
         title: testCase.name,
@@ -331,6 +333,9 @@ class ReporterImpl {
   }
 
   private _detectAndHandleTestDuplicates() {
+    // Random title separator.
+    const TITLE_SEPARATOR = crypto.randomBytes(128).toString('base64');
+
     const testIdToTests = new Map<string, FK.Test[]>();
 
     function visitSuite(suite: FK.Suite, parentTitles: string[] = []) {
@@ -344,7 +349,7 @@ class ReporterImpl {
         // We consider tests to be duplicate if they have the same sequence of suites,
         // and they're being run in the same set of environments.
         const envs = Array.from(new Set(test.attempts.map(attempt => attempt.environmentIdx ?? 0))).sort((a, b) => a - b);
-        const testId = `[${envs.join(', ')}] ` + [...parentTitles, test.title].join(' > ');
+        const testId = [`[${envs.join(', ')}]`, ...parentTitles, test.title].join(TITLE_SEPARATOR);
         let tests = testIdToTests.get(testId);
         if (!tests) {
           tests = [];
@@ -362,7 +367,7 @@ class ReporterImpl {
     for (const [testId, tests] of testIdToTests) {
       if (tests.length <= 1)
         continue;
-      // Sort tests by souce location.
+      // Sort tests by source location.
       if (tests.every(test => !!test.location))
         tests.sort(sourceLocationComparator);
       
