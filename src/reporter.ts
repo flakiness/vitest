@@ -19,28 +19,6 @@ interface UserConsoleLog {
   time: number;
   size: number;
 }
-interface TestArtifactLocation {
-  /** Line number in the source file (1-indexed) */
-  line: number;
-  /** Column number in the line (1-indexed) */
-  column: number;
-  /** Path to the source file */
-  file: string;
-}
-interface TestAttachment {
-  /** MIME type of the attachment (e.g., 'image/png', 'text/plain') */
-  contentType?: string;
-  /** File system path to the attachment */
-  path?: string;
-  /** Inline attachment content as a string or raw binary data */
-  body?: string | Uint8Array;
-}
-interface TestAnnotation {
-  message: string;
-  type: string;
-  location?: TestArtifactLocation;
-  attachment?: TestAttachment;
-}
 
 export type OpenMode = 'always' | 'never' | 'on-failure';
 
@@ -83,13 +61,6 @@ export default class FKVitestReporter implements Reporter {
     this._vitest = vitest;
   }
 
-	/**
-	* Called when annotation is added via the `task.annotate` API.
-	*/
-	async onTestCaseAnnotate(testCase: TestCase, annotation: TestAnnotation) {
-    await this._impl?.onTestCaseAnnotate(testCase, annotation);
-  }
-
   onTestRunStart() {
     assert(this._vitest, 'onInit must be called before onTestRunStart');
     // Watch mode starts multiple runs; for each test run, we create a new
@@ -116,7 +87,6 @@ class ReporterImpl {
   private _testCaseIdToTest = new Map<string, FK.Test>();
   private _testToTestCaseId = new Map<FK.Test, string>();
   private _stdio = new Map<string, UserConsoleLog[]>();
-  private _annotations = new Map<string, TestAnnotation[]>();
 
   // In Vitest, all projects MUST HAVE UNIQUE NAMES.
   // So we create environments per project name.
@@ -165,15 +135,6 @@ class ReporterImpl {
       this._stdio.set(log.taskId, entries);
     }
     entries.push(log);
-  }
-
-  onTestCaseAnnotate(testCase: TestCase, annotation: TestAnnotation) {
-    let entries = this._annotations.get(testCase.id);
-    if (!entries) {
-      entries = [];
-      this._annotations.set(testCase.id, entries);
-    }
-    entries.push(annotation);
   }
 
   private _ensureFKSuite(p: TestSuite | TestModule): FK.Suite {
@@ -291,7 +252,7 @@ class ReporterImpl {
       location: this._errorLocation(error.stacks, testFile),
     }));
 
-    const annotations: FK.Annotation[] = (this._annotations.get(testCase.id) ?? []).map(annotation => ({
+    const annotations: FK.Annotation[] = testCase.annotations().map(annotation => ({
       type: annotation.type,
       description: annotation.message,
       location: annotation.location ? {
