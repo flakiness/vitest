@@ -51,7 +51,6 @@ export type FKVitestReporterOptions = {
   token?: string,
   outputFolder?: string,
   open?: OpenMode,
-  quiet?: boolean,
 }
 
 export interface FKVitestLogger {
@@ -484,7 +483,7 @@ class ReporterImpl {
     const shouldOpen = process.stdin.isTTY && !process.env.CI && (openMode === 'always' || (openMode === 'on-failure' && reason === 'failed'));
     if (shouldOpen) {
       await showReport(outputFolder);
-    } else if (!this._options.quiet) {
+    } else {
       const defaultOutputFolder = path.join(process.cwd(), 'flakiness-report');
       const folder = defaultOutputFolder === outputFolder ? '' : path.relative(process.cwd(), outputFolder);
       this._logger.log(`

@@ -3,7 +3,7 @@ import { generateFlakinessReport } from './utils';
 
 it('should report proper top-level properties', async (ctx) => {
   const starttime = Date.now();
-  const { report } = await generateFlakinessReport(ctx, {
+  const { report, log } = await generateFlakinessReport(ctx, {
     'vitest.config.ts': `
       import { defineConfig } from 'vitest/config';
       export default defineConfig({});
@@ -32,4 +32,8 @@ it('should report proper top-level properties', async (ctx) => {
   // RAM telemetry
   expect(report.ramBytes).toBeGreaterThan(0);
   expect(report.ram?.length).toBeGreaterThan(0);
+  
+  // A message on how to show flakiness report should be shown
+  expect(log.logs.length).toBe(1);
+  expect(log.logs[0]).toContain('npx flakiness show');
 });
