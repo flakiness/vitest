@@ -1,0 +1,41 @@
+name: Publish to NPM
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
+
+jobs:
+  publish-to-npm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Build & Publish
+        run: |
+          pnpm i --frozen-lockfile
+          pnpm build
+
+          VERSION=${GITHUB_REF_NAME#v}
+
+          if [[ "$VERSION" == *"-"* ]]; then
+            echo "Publishing prerelease to @next"
+            pnpm publish --access=public --no-git-checks --tag next
+          else
+            echo "Publishing stable to @latest"
+            pnpm publish --access=public --no-git-checks
+          fi
