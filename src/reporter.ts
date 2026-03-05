@@ -132,7 +132,6 @@ class ReporterImpl {
     private _options: FKVitestReporterOptions
   ) {
     this._sampleSystem = this._sampleSystem.bind(this);
-    this._sampleSystem();
   }
 
   private _sampleSystem() {
@@ -166,7 +165,8 @@ class ReporterImpl {
   }
 
   onTestRunStart() {
-    this._startTimestamp = Date.now();      
+    this._startTimestamp = Date.now();
+    this._sampleSystem();
   }
 
   private _ensureFKSuite(p: TestSuite | TestModule): FK.Suite {
