@@ -22,3 +22,20 @@ it('should capture test errors', async (ctx) => {
     file: 'file-1.test.ts',
   });
 });
+
+it('should capture unhandled errors', async (ctx) => {
+  const { report } = await generateFlakinessReport(ctx, {
+    'file.test.ts': `
+      import { expect, it, describe } from 'vitest';
+
+      it('test', async () => {
+        setTimeout(() => {
+          throw new Error('Unhinged error!');
+        }, 10);
+      });
+    `,
+  });
+  expect(report.unattributedErrors?.length).toBe(1);
+  const err = report.unattributedErrors![0];
+  expect(err.message).toBe('Unhinged error!');
+});

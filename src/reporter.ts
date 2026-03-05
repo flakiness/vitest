@@ -1,9 +1,10 @@
 import { FlakinessReport as FK } from '@flakiness/flakiness-report';
 import { GitWorktree, ReportUtils, uploadReport, writeReport } from '@flakiness/sdk';
+import type { ParsedStack } from '@vitest/utils';
 import chalk from 'chalk';
 import assert from 'node:assert';
 import path from 'node:path';
-import type { TestCase, TestModule, TestSuite, Vitest } from 'vitest/node';
+import type { SerializedError, TestCase, TestModule, TestRunEndReason, TestSuite, Vitest } from 'vitest/node';
 import type { Reporter } from 'vitest/reporters';
 
 const warn = (txt: string) => console.warn(chalk.yellow(`[flakiness.io] ${txt}`));
@@ -76,8 +77,8 @@ export default class FKVitestReporter implements Reporter {
     this._impl?.onTestCaseResult(testCase);
   }
 
-  async onTestRunEnd(testModules: ReadonlyArray<TestModule>) {
-    this._impl?.onTestRunEnd(testModules);
+  async onTestRunEnd(testModules: ReadonlyArray<TestModule>, unhandledErrors: ReadonlyArray<SerializedError>, reason: TestRunEndReason) {
+    this._impl?.onTestRunEnd(testModules, unhandledErrors, reason);
   }
 }
 
@@ -217,6 +218,17 @@ class ReporterImpl {
     return idx;
   }
 
+  private _errorLocation(stacks: ParsedStack[]|undefined, testFile?: string): FK.Location | undefined {
+    // Find a frame that is either in the test file, or the first outside of node_modules.
+    const frame = stacks?.find(frame => this._worktree.gitPath(frame.file) === testFile) ??
+        stacks?.find(frame => !frame.file.includes('node_modules'));
+    return frame ? {
+      file: this._worktree.gitPath(frame.file),
+      line: frame.line as FK.Number1Based,
+      column: frame.column as FK.Number1Based,
+    } : undefined;
+  }
+
   async onTestCaseResult(testCase: TestCase) {
     const environmentIdx = this._ensureEnvironmentIdx(testCase);
     const fkTest = this._ensureTest(testCase);
@@ -249,20 +261,11 @@ class ReporterImpl {
     this._stdio.delete(testCase.id);
 
     const testFile = this._worktree.gitPath(testCase.module.moduleId);
-    const errors: FK.ReportError[] = (result.errors ?? []).map(error => {
-      // Find a frame that is either in the test file, or the first outside of node_modules.
-      const frame = error.stacks?.find(frame => this._worktree.gitPath(frame.file) === testFile) ??
-        error.stacks?.find(frame => !frame.file.includes('node_modules'));
-      return {
-        message: error.message,
-        stack: error.stack,
-        location: frame ? {
-          file: this._worktree.gitPath(frame.file),
-          line: frame.line as FK.Number1Based,
-          column: frame.column as FK.Number1Based,
-        } : undefined,
-      }
-    });
+    const errors: FK.ReportError[] = (result.errors ?? []).map(error => ({
+      message: error.message,
+      stack: error.stack,
+      location: this._errorLocation(error.stacks, testFile),
+    }));
 
     const annotations: FK.Annotation[] = (this._annotations.get(testCase.id) ?? []).map(annotation => ({
       type: annotation.type,
@@ -273,7 +276,6 @@ class ReporterImpl {
         column: annotation.location.column as FK.Number1Based,
       } : undefined,
     }));
-
 
     const expectedStatus = testCase.options.fails ? 'failed' : 'passed';
     const oppositeStatus = expectedStatus === 'failed' ? 'passed' : 'failed';
@@ -314,7 +316,7 @@ class ReporterImpl {
     });
   }
 
-  async onTestRunEnd(testModules: ReadonlyArray<TestModule>) {
+  async onTestRunEnd(testModules: ReadonlyArray<TestModule>, unhandledErrors: ReadonlyArray<SerializedError>, reason: TestRunEndReason) {
     const duration = (Date.now() - this._startTimestamp) as FK.DurationMS;
     const report: FK.Report = ReportUtils.normalizeReport({
       flakinessProject: this._options.flakinessProject,
@@ -325,6 +327,11 @@ class ReporterImpl {
       startTimestamp: this._startTimestamp as FK.UnixTimestampMS,
       duration,
       suites: Array.from(this._fileSuites.values()),
+      unattributedErrors: unhandledErrors.map(error => ({
+        message: error.message,
+        stack: error.stack,
+        location: this._errorLocation(error.stacks),
+      })),
     });
     await ReportUtils.collectSources(this._worktree, report);
     const outputFolder = this._options.outputFolder ?? path.join(

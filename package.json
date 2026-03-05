@@ -14,6 +14,7 @@
   "type": "module",
   "devDependencies": {
     "@types/node": "^25.3.3",
+    "@vitest/utils": "^4.0.18",
     "esbuild": "^0.27.3",
     "kubik": "^0.24.0",
     "tsx": "^4.21.0",
