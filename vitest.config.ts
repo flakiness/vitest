@@ -7,7 +7,7 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/run-artifacts/**'],
     testTimeout: 30000,
     reporters: [
-      ['default'],
+      'default',
       ['@flakiness/vitest', {
         flakinessProject: 'flakiness/vitest',
       }],

@@ -47,13 +47,18 @@ export default defineConfig({
   test: {
     includeTaskLocation: true,
     reporters: [
-      ['@flakiness/vitest']
+      'default',
+      ['@flakiness/vitest', { flakinessProject: 'my-org/my-project' }]
     ],
   },
 });
 ```
 
-> **Note:** Setting `includeTaskLocation: true` is recommended to enable test locations the report.
+> [!NOTE]
+> The flakiness reporter should be added alongside your other reporters. Include `'default'` (or another built-in reporter) to retain the standard terminal output, since Vitest only uses the reporters listed in the `reporters` array.
+
+> [!TIP]
+> Setting `includeTaskLocation: true` is recommended to enable test locations in the report.
 
 Run your tests. The report will be automatically generated in the `./flakiness-report` folder:
 
@@ -227,6 +232,7 @@ export default defineConfig({
   test: {
     includeTaskLocation: true,
     reporters: [
+      'default',
       ['@flakiness/vitest', {
         flakinessProject: 'my-org/my-project',
         endpoint: process.env.FLAKINESS_ENDPOINT,
