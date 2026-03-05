@@ -8,10 +8,6 @@ import path from 'node:path';
 import type { SerializedError, TestCase, TestModule, TestRunEndReason, TestSuite, Vitest } from 'vitest/node';
 import type { Reporter } from 'vitest/reporters';
 
-const warn = (txt: string) => console.warn(chalk.yellow(`[flakiness.io] ${txt}`));
-const err = (txt: string) => console.error(chalk.red(`[flakiness.io] ${txt}`));
-const log = (txt: string) => console.log(`[flakiness.io] ${txt}`);
-
 //TODO: the following types must be imported from vitest, but the types
 // are actually unavailable for imports.
 interface UserConsoleLog {
@@ -58,10 +54,25 @@ export type FKVitestReporterOptions = {
   quiet?: boolean,
 }
 
+export interface FKVitestLogger {
+  log(txt: string): void;
+  warn(txt: string): void;
+  error(txt: string): void;
+}
+
 export default class FKVitestReporter implements Reporter {
   private _impl?: ReporterImpl;
+  private _logger: FKVitestLogger = {
+    warn: (txt: string) => console.warn(chalk.yellow(txt)),
+    error: (txt: string) => console.error(chalk.red(txt)),
+    log: (txt: string) => console.log(txt),
+  }
 
   constructor(private _options: FKVitestReporterOptions) {
+  }
+
+  setLoggerForTest(logger: FKVitestLogger) {
+    this._logger = logger;
   }
 
   onUserConsoleLog(log: UserConsoleLog) {
@@ -69,7 +80,7 @@ export default class FKVitestReporter implements Reporter {
   }
 
   onInit(vitest: Vitest) {
-    this._impl = ReporterImpl.create(vitest.config.root, this._options);
+    this._impl = ReporterImpl.create(vitest.config.root, this._options, this._logger);
     this._impl?.onInit(vitest);
   }
 
@@ -113,16 +124,16 @@ class ReporterImpl {
 
   private _configPath?: string;
 
-  static create(rootPath: string, options: FKVitestReporterOptions) {
+  static create(rootPath: string, options: FKVitestReporterOptions, logger: FKVitestLogger) {
     let commitId: FK.CommitId;
     let worktree: GitWorktree;
     try {
       worktree = GitWorktree.create(rootPath);
       commitId = worktree.headCommitId();
-      return new ReporterImpl(worktree, commitId, options);
+      return new ReporterImpl(worktree, commitId, options, logger);
     } catch (e) {
-      warn(`Failed to fetch commit info - is this a git repo?`);
-      err(`Report is NOT generated.`);
+      logger.warn(`[flakiness.io] Failed to fetch commit info - is this a git repo?`);
+      logger.error(`[flakiness.io] Report is NOT generated.`);
       return;
     }
   }
@@ -130,7 +141,8 @@ class ReporterImpl {
   constructor(
     private _worktree: GitWorktree,
     private _commitId: FK.CommitId,
-    private _options: FKVitestReporterOptions
+    private _options: FKVitestReporterOptions,
+    private _logger: FKVitestLogger,
   ) {
     this._sampleSystem = this._sampleSystem.bind(this);
   }
@@ -338,6 +350,7 @@ class ReporterImpl {
     const TITLE_SEPARATOR = crypto.randomBytes(128).toString('base64');
 
     const testIdToTests = new Map<string, FK.Test[]>();
+    const testFullNames = new Map<FK.Test, string>();
 
     function visitSuite(suite: FK.Suite, parentTitles: string[] = []) {
       parentTitles.push(suite.title);
@@ -351,6 +364,7 @@ class ReporterImpl {
         // and they're being run in the same set of environments.
         const envs = Array.from(new Set(test.attempts.map(attempt => attempt.environmentIdx ?? 0))).sort((a, b) => a - b);
         const testId = [`[${envs.join(', ')}]`, ...parentTitles, test.title].join(TITLE_SEPARATOR);
+        testFullNames.set(test, [...parentTitles, test.title].join(' > '));
         let tests = testIdToTests.get(testId);
         if (!tests) {
           tests = [];
@@ -364,10 +378,17 @@ class ReporterImpl {
     for (const fileSuite of this._fileSuites.values())
       visitSuite(fileSuite);
 
+    // If there are no duplicates, then bail out.
+    if (Array.from(testIdToTests.values()).every(tests => tests.length <= 1))
+      return;
+
     // Auto-rename duplicates.
     for (const [testId, tests] of testIdToTests) {
       if (tests.length <= 1)
         continue;
+
+      const testFullName = testFullNames.get(tests[0])!;
+      this._logger.warn(`[flakiness.io] ⚠ ${tests.length} duplicates detected: ${testFullName}`);
 
       // Sort tests according to their vitest identifier.
       tests.sort((test1, test2) => {
@@ -426,6 +447,7 @@ class ReporterImpl {
       await uploadReport(report, [], {
         flakinessAccessToken: this._options.token,
         flakinessEndpoint: this._options.endpoint,
+        logger: this._logger,
       });
     }
 
@@ -438,7 +460,7 @@ class ReporterImpl {
     } else if (!this._options.quiet) {
       const defaultOutputFolder = path.join(process.cwd(), 'flakiness-report');
       const folder = defaultOutputFolder === outputFolder ? '' : path.relative(process.cwd(), outputFolder);
-      log(`
+      this._logger.log(`
 To open last Flakiness report, run:
 
   ${chalk.cyan(`npx flakiness show ${folder}`)}
