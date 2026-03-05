@@ -6,7 +6,7 @@ import { assertCount, assertStatus, generateFlakinessReport } from './utils';
  * and Flakiness.io doesn't, we need to make sure that reporter
  * handles the duplicates.
  */
-it('should rename duplicate test names', async (ctx) => {
+it('should fail duplicate test names', async (ctx) => {
   const { report, log } = await generateFlakinessReport(ctx, {
     'sum.test.ts': `
       import { expect, it } from 'vitest';

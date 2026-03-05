@@ -47,5 +47,5 @@ it('should have a reasonable name for default project', async (ctx) => {
   });
   expect(report.environments.length).toBe(1);
   // While the name is not the best, we can render it nicely in the UI later.
-  expect(report.environments[0].name).toBe('');
+  expect(report.environments[0].name).toBe('vitest');
 });

@@ -236,11 +236,12 @@ class ReporterImpl {
   }
 
   private _ensureEnvironmentIdx(testCase: TestCase) {
-    let idx = this._environments.findIndex(env => env.name === testCase.project.name);
+    const projectName = testCase.project.name || 'vitest';
+    let idx = this._environments.findIndex(env => env.name === projectName);
     if (idx === -1) {
       idx = this._environments.length;
       this._environments.push(ReportUtils.createEnvironment({
-        name: testCase.project.name,
+        name: projectName,
       }));
     }
     return idx;
