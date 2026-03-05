@@ -2,6 +2,7 @@ import { FlakinessReport as FK } from '@flakiness/flakiness-report';
 import { CIUtils, CPUUtilization, GitWorktree, RAMUtilization, ReportUtils, showReport, uploadReport, writeReport } from '@flakiness/sdk';
 import type { ParsedStack } from '@vitest/utils';
 import chalk from 'chalk';
+import crypto from 'crypto';
 import assert from 'node:assert';
 import path from 'node:path';
 import type { SerializedError, TestCase, TestModule, TestRunEndReason, TestSuite, Vitest } from 'vitest/node';
@@ -98,7 +99,8 @@ class ReporterImpl {
   private _ramUtilization = new RAMUtilization({ precision: 10 });
 
   private _startTimestamp: number = Date.now();
-  private _tests = new Map<string, FK.Test>();
+  private _testCaseIdToTest = new Map<string, FK.Test>();
+  private _testToTestCaseId = new Map<FK.Test, string>();
   private _stdio = new Map<string, UserConsoleLog[]>();
   private _annotations = new Map<string, TestAnnotation[]>();
 
@@ -202,7 +204,7 @@ class ReporterImpl {
   }
 
   private _ensureTest(testCase: TestCase): FK.Test {
-    let fkTest = this._tests.get(testCase.id);
+    let fkTest = this._testCaseIdToTest.get(testCase.id);
     if (!fkTest) {
       fkTest = {
         attempts: [],
@@ -213,7 +215,8 @@ class ReporterImpl {
           line: testCase.location.line as FK.Number1Based,
         } : undefined,
       }
-      this._tests.set(testCase.id, fkTest);
+      this._testToTestCaseId.set(fkTest, testCase.id);
+      this._testCaseIdToTest.set(testCase.id, fkTest);
       const parent = this._ensureFKSuite(testCase.parent);
       parent.tests ??= [];
       parent.tests.push(fkTest);
@@ -330,10 +333,66 @@ class ReporterImpl {
     });
   }
 
+  private _detectAndHandleTestDuplicates() {
+    // Random title separator.
+    const TITLE_SEPARATOR = crypto.randomBytes(128).toString('base64');
+
+    const testIdToTests = new Map<string, FK.Test[]>();
+
+    function visitSuite(suite: FK.Suite, parentTitles: string[] = []) {
+      parentTitles.push(suite.title);
+      for (const childSuite of suite.suites ?? [])
+        visitSuite(childSuite, parentTitles);
+      for (const test of suite.tests ?? []) {
+        // Each test's attempts is a product of a single onTestCaseResult call.
+        // All attempts for the test have the same envIdx; but just to be safe,
+        // we extract them all here in a sorted deduped list.
+        // We consider tests to be duplicate if they have the same sequence of suites,
+        // and they're being run in the same set of environments.
+        const envs = Array.from(new Set(test.attempts.map(attempt => attempt.environmentIdx ?? 0))).sort((a, b) => a - b);
+        const testId = [`[${envs.join(', ')}]`, ...parentTitles, test.title].join(TITLE_SEPARATOR);
+        let tests = testIdToTests.get(testId);
+        if (!tests) {
+          tests = [];
+          testIdToTests.set(testId, tests);
+        }
+        tests.push(test);
+      }
+      parentTitles.pop();
+    }
+
+    for (const fileSuite of this._fileSuites.values())
+      visitSuite(fileSuite);
+
+    // Auto-rename duplicates.
+    for (const [testId, tests] of testIdToTests) {
+      if (tests.length <= 1)
+        continue;
+
+      // Sort tests according to their vitest identifier.
+      tests.sort((test1, test2) => {
+        const id1 = this._testToTestCaseId.get(test1)!;
+        const id2 = this._testToTestCaseId.get(test2)!;
+        return id1 < id2 ? -1 : id1 > id2 ? 1 : 0;
+      });
+
+      // Add dupe suffixes to duplicated tests.
+      let dupeIndex = 2;
+      for (let i = 1; i < tests.length; ++i) {
+        while (testIdToTests.has(testId + dupeSuffix(dupeIndex)))
+          ++dupeIndex;
+        tests[i].title += dupeSuffix(dupeIndex);
+        testIdToTests.set(testId + dupeSuffix(dupeIndex), [tests[i]]);
+      }
+    }
+  }
+
   async onTestRunEnd(testModules: ReadonlyArray<TestModule>, unhandledErrors: ReadonlyArray<SerializedError>, reason: TestRunEndReason) {
     clearTimeout(this._telemetryTimer);
     this._cpuUtilization.sample();
     this._ramUtilization.sample();
+
+    this._detectAndHandleTestDuplicates();
 
     const duration = (Date.now() - this._startTimestamp) as FK.DurationMS;
     const report: FK.Report = ReportUtils.normalizeReport({
@@ -386,4 +445,8 @@ To open last Flakiness report, run:
       `);
     }
   }
+}
+
+function dupeSuffix(dupeIndex: number): string {
+  return ` – dupe #${dupeIndex}`;
 }
