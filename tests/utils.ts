@@ -55,7 +55,16 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
     outputFolder: reportDir,
     disableUpload: true,
     open: 'never',
-    quiet: true,
+  });
+  const log: { warns: string[], errors: string[], logs: string[] } = {
+    warns: [],
+    errors: [],
+    logs: [],
+  };
+  reporter.setLoggerForTest({
+    error: txt => log.errors.push(txt),
+    log: txt => log.logs.push(txt),
+    warn: txt => log.warns.push(txt),
   });
   const vitest = await startVitest(
     'test',
@@ -70,7 +79,10 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
     },
   );
   await vitest?.close();
-  return readReport(reportDir);
+  return {
+    ...(await readReport(reportDir)),
+    log,
+  }
 }
 
 function slugify(text: string) {
