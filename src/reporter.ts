@@ -85,7 +85,6 @@ class ReporterImpl {
 
   private _startTimestamp: number = Date.now();
   private _testCaseIdToTest = new Map<string, FK.Test>();
-  private _testToTestCaseId = new Map<FK.Test, string>();
   private _stdio = new Map<string, UserConsoleLog[]>();
 
   // In Vitest, all projects MUST HAVE UNIQUE NAMES.
@@ -182,7 +181,6 @@ class ReporterImpl {
           line: testCase.location.line as FK.Number1Based,
         } : undefined,
       }
-      this._testToTestCaseId.set(fkTest, testCase.id);
       this._testCaseIdToTest.set(testCase.id, fkTest);
       const parent = this._ensureFKSuite(testCase.parent);
       parent.tests ??= [];
@@ -450,8 +448,4 @@ To open last Flakiness report, run:
       `);
     }
   }
-}
-
-function dupeSuffix(dupeIndex: number): string {
-  return ` – dupe #${dupeIndex}`;
 }
