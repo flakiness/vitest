@@ -22,7 +22,7 @@ it('should rename duplicate test names', async (ctx) => {
   expect(test2.title).toBe('should work – dupe #2');
   expect(test3.title).toBe('should work – dupe #3');
 
-  const warnMsg = assertCount(log.warns, 1);
+  const [warnMsg] = assertCount(log.warns, 1);
   expect(warnMsg).toContain('3 duplicates detected');
   expect(warnMsg).toContain('sum.test.ts > should work');
 });
