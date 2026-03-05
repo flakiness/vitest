@@ -11,35 +11,35 @@ import type { Reporter } from 'vitest/reporters';
 //TODO: the following types must be imported from vitest, but the types
 // are actually unavailable for imports.
 interface UserConsoleLog {
-	content: string;
-	origin?: string;
-	browser?: boolean;
-	type: "stdout" | "stderr";
-	taskId?: string;
-	time: number;
-	size: number;
+  content: string;
+  origin?: string;
+  browser?: boolean;
+  type: "stdout" | "stderr";
+  taskId?: string;
+  time: number;
+  size: number;
 }
 interface TestArtifactLocation {
-	/** Line number in the source file (1-indexed) */
-	line: number;
-	/** Column number in the line (1-indexed) */
-	column: number;
-	/** Path to the source file */
-	file: string;
+  /** Line number in the source file (1-indexed) */
+  line: number;
+  /** Column number in the line (1-indexed) */
+  column: number;
+  /** Path to the source file */
+  file: string;
 }
 interface TestAttachment {
-	/** MIME type of the attachment (e.g., 'image/png', 'text/plain') */
-	contentType?: string;
-	/** File system path to the attachment */
-	path?: string;
-	/** Inline attachment content as a string or raw binary data */
-	body?: string | Uint8Array;
+  /** MIME type of the attachment (e.g., 'image/png', 'text/plain') */
+  contentType?: string;
+  /** File system path to the attachment */
+  path?: string;
+  /** Inline attachment content as a string or raw binary data */
+  body?: string | Uint8Array;
 }
 interface TestAnnotation {
-	message: string;
-	type: string;
-	location?: TestArtifactLocation;
-	attachment?: TestAttachment;
+  message: string;
+  type: string;
+  location?: TestArtifactLocation;
+  attachment?: TestAttachment;
 }
 
 export type OpenMode = 'always' | 'never' | 'on-failure';
@@ -61,6 +61,7 @@ export interface FKVitestLogger {
 
 export default class FKVitestReporter implements Reporter {
   private _impl?: ReporterImpl;
+  private _vitest?: Vitest;
   private _logger: FKVitestLogger = {
     warn: (txt: string) => console.warn(chalk.yellow(txt)),
     error: (txt: string) => console.error(chalk.red(txt)),
@@ -74,32 +75,35 @@ export default class FKVitestReporter implements Reporter {
     this._logger = logger;
   }
 
-  onUserConsoleLog(log: UserConsoleLog) {
-    this._impl?.onUserConsoleLog(log);
+  async onUserConsoleLog(log: UserConsoleLog) {
+    await this._impl?.onUserConsoleLog(log);
   }
 
   onInit(vitest: Vitest) {
-    this._impl = ReporterImpl.create(vitest.config.root, this._options, this._logger);
-    this._impl?.onInit(vitest);
+    this._vitest = vitest;
   }
 
 	/**
 	* Called when annotation is added via the `task.annotate` API.
 	*/
-	onTestCaseAnnotate(testCase: TestCase, annotation: TestAnnotation) {
-    this._impl?.onTestCaseAnnotate(testCase, annotation);
+	async onTestCaseAnnotate(testCase: TestCase, annotation: TestAnnotation) {
+    await this._impl?.onTestCaseAnnotate(testCase, annotation);
   }
 
   onTestRunStart() {
-    this._impl?.onTestRunStart();
+    assert(this._vitest, 'onInit must be called before onTestRunStart');
+    // Watch mode starts multiple runs; for each test run, we create a new
+    // reporter.
+    this._impl = ReporterImpl.create(this._vitest.config.root, this._options, this._logger, this._vitest.config.config);
   }
 
   async onTestCaseResult(testCase: TestCase) {
-    this._impl?.onTestCaseResult(testCase);
+    await this._impl?.onTestCaseResult(testCase);
   }
 
   async onTestRunEnd(testModules: ReadonlyArray<TestModule>, unhandledErrors: ReadonlyArray<SerializedError>, reason: TestRunEndReason) {
-    this._impl?.onTestRunEnd(testModules, unhandledErrors, reason);
+    await this._impl?.onTestRunEnd(testModules, unhandledErrors, reason);
+    this._impl = undefined;
   }
 }
 
@@ -121,15 +125,13 @@ class ReporterImpl {
   private _allSuites = new Map<string, FK.Suite>();
   private _fileSuites = new Map<string, FK.Suite>();
 
-  private _configPath?: string;
-
-  static create(rootPath: string, options: FKVitestReporterOptions, logger: FKVitestLogger) {
+  static create(rootPath: string, options: FKVitestReporterOptions, logger: FKVitestLogger, config?: string) {
     let commitId: FK.CommitId;
     let worktree: GitWorktree;
     try {
       worktree = GitWorktree.create(rootPath);
       commitId = worktree.headCommitId();
-      return new ReporterImpl(worktree, commitId, options, logger);
+      return new ReporterImpl(worktree, commitId, options, logger, config);
     } catch (e) {
       logger.warn(`[flakiness.io] Failed to fetch commit info - is this a git repo?`);
       logger.error(`[flakiness.io] Report is NOT generated.`);
@@ -142,18 +144,16 @@ class ReporterImpl {
     private _commitId: FK.CommitId,
     private _options: FKVitestReporterOptions,
     private _logger: FKVitestLogger,
+    private _configPath?: string,
   ) {
     this._sampleSystem = this._sampleSystem.bind(this);
+    this._sampleSystem();
   }
 
   private _sampleSystem() {
     this._cpuUtilization.sample();
     this._ramUtilization.sample();
     this._telemetryTimer = setTimeout(this._sampleSystem, 1000);
-  }
-
-  onInit(vitest: Vitest) {
-    this._configPath = vitest.config.config;
   }
 
   onUserConsoleLog(log: UserConsoleLog) {
@@ -174,11 +174,6 @@ class ReporterImpl {
       this._annotations.set(testCase.id, entries);
     }
     entries.push(annotation);
-  }
-
-  onTestRunStart() {
-    this._startTimestamp = Date.now();
-    this._sampleSystem();
   }
 
   private _ensureFKSuite(p: TestSuite | TestModule): FK.Suite {
