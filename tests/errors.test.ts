@@ -33,6 +33,10 @@ it('should capture unhandled errors', async (ctx) => {
           throw new Error('Unhinged error!');
         }, 10);
       });
+
+      it.afterAll(async () => {
+        await new Promise(x => setTimeout(x, 100));
+      })
     `,
   });
   expect(report.unattributedErrors?.length).toBe(1);
