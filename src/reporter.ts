@@ -330,10 +330,58 @@ class ReporterImpl {
     });
   }
 
+  private _detectAndHandleTestDuplicates() {
+    const testIdToTests = new Map<string, FK.Test[]>();
+
+    function visitSuite(suite: FK.Suite, parentTitles: string[] = []) {
+      parentTitles.push(suite.title);
+      for (const childSuite of suite.suites ?? [])
+        visitSuite(childSuite, parentTitles);
+      for (const test of suite.tests ?? []) {
+        // Each test's attempts is a product of a single onTestCaseResult call.
+        // All attempts for the test have the same envIdx; but just to be safe,
+        // we extract them all here in a sorted deduped list.
+        // We consider tests to be duplicate if they have the same sequence of suites,
+        // and they're being run in the same set of environments.
+        const envs = Array.from(new Set(test.attempts.map(attempt => attempt.environmentIdx ?? 0))).sort((a, b) => a - b);
+        const testId = `[${envs.join(', ')}] ` + [...parentTitles, test.title].join(' > ');
+        let tests = testIdToTests.get(testId);
+        if (!tests) {
+          tests = [];
+          testIdToTests.set(testId, tests);
+        }
+        tests.push(test);
+      }
+      parentTitles.pop();
+    }
+
+    for (const fileSuite of this._fileSuites.values())
+      visitSuite(fileSuite);
+
+    // Auto-rename duplicates.
+    for (const [testId, tests] of testIdToTests) {
+      if (tests.length <= 1)
+        continue;
+      // Sort tests by souce location.
+      if (tests.every(test => !!test.location))
+        tests.sort(sourceLocationComparator);
+      
+      // Add dupe suffixes to duplicated tests.
+      let dupeIndex = 2;
+      for (let i = 1; i < tests.length; ++i) {
+        while (testIdToTests.has(testId + dupeSuffix(dupeIndex)))
+          ++dupeIndex;
+        tests[i].title += dupeSuffix(dupeIndex);
+      }
+    }
+  }
+
   async onTestRunEnd(testModules: ReadonlyArray<TestModule>, unhandledErrors: ReadonlyArray<SerializedError>, reason: TestRunEndReason) {
     clearTimeout(this._telemetryTimer);
     this._cpuUtilization.sample();
     this._ramUtilization.sample();
+
+    this._detectAndHandleTestDuplicates();
 
     const duration = (Date.now() - this._startTimestamp) as FK.DurationMS;
     const report: FK.Report = ReportUtils.normalizeReport({
@@ -386,4 +434,18 @@ To open last Flakiness report, run:
       `);
     }
   }
+}
+
+function dupeSuffix(dupeIndex: number): string {
+  return ` – dupe #${dupeIndex}`;
+}
+
+function sourceLocationComparator(a: FK.Test, b: FK.Test) {
+  if (!a.location || !b.location)
+    return 0;
+  if (a.location.file !== b.location.file)
+    return a.location.file < b.location.file ? -1 : 1;
+  if (a.location.line !== b.location.line)
+    return a.location.line - b.location.line;
+  return a.location.column - b.location.column;
 }

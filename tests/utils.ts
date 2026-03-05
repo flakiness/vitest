@@ -117,3 +117,8 @@ export function assertSTDIO(stdio: FlakinessReport.TimedSTDIOEntry[]|undefined, 
 export function assertStatus(status: FlakinessReport.TestStatus|undefined, expected: FlakinessReport.TestStatus) {
   expect(status ?? 'passed').toBe(expected);
 }
+
+export function assertCount<T>(elements: T[]|undefined, count: number): T[] {
+  expect(elements?.length).toBe(count);
+  return elements!;
+}
