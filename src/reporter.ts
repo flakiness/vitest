@@ -99,7 +99,8 @@ class ReporterImpl {
   private _ramUtilization = new RAMUtilization({ precision: 10 });
 
   private _startTimestamp: number = Date.now();
-  private _tests = new Map<string, FK.Test>();
+  private _testCaseIdToTest = new Map<string, FK.Test>();
+  private _testToTestCaseId = new Map<FK.Test, string>();
   private _stdio = new Map<string, UserConsoleLog[]>();
   private _annotations = new Map<string, TestAnnotation[]>();
 
@@ -203,9 +204,8 @@ class ReporterImpl {
   }
 
   private _ensureTest(testCase: TestCase): FK.Test {
-    let fkTest = this._tests.get(testCase.id);
+    let fkTest = this._testCaseIdToTest.get(testCase.id);
     if (!fkTest) {
-      console.log(`testCase.id: ${testCase.id}`);
       fkTest = {
         attempts: [],
         title: testCase.name,
@@ -215,7 +215,8 @@ class ReporterImpl {
           line: testCase.location.line as FK.Number1Based,
         } : undefined,
       }
-      this._tests.set(testCase.id, fkTest);
+      this._testToTestCaseId.set(fkTest, testCase.id);
+      this._testCaseIdToTest.set(testCase.id, fkTest);
       const parent = this._ensureFKSuite(testCase.parent);
       parent.tests ??= [];
       parent.tests.push(fkTest);
@@ -367,10 +368,14 @@ class ReporterImpl {
     for (const [testId, tests] of testIdToTests) {
       if (tests.length <= 1)
         continue;
-      // Sort tests by source location.
-      if (tests.every(test => !!test.location))
-        tests.sort(sourceLocationComparator);
-      
+
+      // Sort tests according to their vitest identifier.
+      tests.sort((test1, test2) => {
+        const id1 = this._testToTestCaseId.get(test1)!;
+        const id2 = this._testToTestCaseId.get(test2)!;
+        return id1 < id2 ? -1 : id1 > id2 ? 1 : 0;
+      });
+
       // Add dupe suffixes to duplicated tests.
       let dupeIndex = 2;
       for (let i = 1; i < tests.length; ++i) {
@@ -444,14 +449,4 @@ To open last Flakiness report, run:
 
 function dupeSuffix(dupeIndex: number): string {
   return ` – dupe #${dupeIndex}`;
-}
-
-function sourceLocationComparator(a: FK.Test, b: FK.Test) {
-  if (!a.location || !b.location)
-    return 0;
-  if (a.location.file !== b.location.file)
-    return a.location.file < b.location.file ? -1 : 1;
-  if (a.location.line !== b.location.line)
-    return a.location.line - b.location.line;
-  return a.location.column - b.location.column;
 }
