@@ -38,7 +38,7 @@ it('should capture multiple projects', async (ctx) => {
   expect(report.environments.some(env => env.name === 'browser')).toBeTruthy();
 });
 
-it.only('should have a reasonable name for default project', async (ctx) => {
+it('should have a reasonable name for default project', async (ctx) => {
   const { report } = await generateFlakinessReport(ctx, {
     'file.test.ts': `
       import { expect, it, describe } from 'vitest';
