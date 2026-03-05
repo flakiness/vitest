@@ -1,5 +1,5 @@
 import { FlakinessReport as FK } from '@flakiness/flakiness-report';
-import { GitWorktree, ReportUtils, uploadReport, writeReport } from '@flakiness/sdk';
+import { CPUUtilization, GitWorktree, RAMUtilization, ReportUtils, showReport, uploadReport, writeReport } from '@flakiness/sdk';
 import type { ParsedStack } from '@vitest/utils';
 import chalk from 'chalk';
 import assert from 'node:assert';
@@ -45,11 +45,22 @@ interface TestAnnotation {
 	attachment?: TestAttachment;
 }
 
+export type OpenMode = 'always' | 'never' | 'on-failure';
+
+export type FKVitestReporterOptions = {
+  disableUpload?: boolean,
+  flakinessProject?: string,
+  endpoint?: string,
+  token?: string,
+  outputFolder?: string,
+  open?: OpenMode,
+  quiet?: boolean,
+}
 
 export default class FKVitestReporter implements Reporter {
   private _impl?: ReporterImpl;
 
-  constructor(private _options: ReportOptions) {
+  constructor(private _options: FKVitestReporterOptions) {
   }
 
   onUserConsoleLog(log: UserConsoleLog) {
@@ -82,14 +93,11 @@ export default class FKVitestReporter implements Reporter {
   }
 }
 
-type ReportOptions = {
-  flakinessProject?: string,
-  endpoint?: string,
-  token?: string,
-  outputFolder?: string,
-}
-
 class ReporterImpl {
+  private _telemetryTimer?: NodeJS.Timeout;
+  private _cpuUtilization = new CPUUtilization({ precision: 10 });
+  private _ramUtilization = new RAMUtilization({ precision: 10 });
+
   private _startTimestamp: number = Date.now();
   private _tests = new Map<string, FK.Test>();
   private _stdio = new Map<string, UserConsoleLog[]>();
@@ -104,7 +112,7 @@ class ReporterImpl {
 
   private _configPath?: string;
 
-  static create(rootPath: string, options: ReportOptions) {
+  static create(rootPath: string, options: FKVitestReporterOptions) {
     let commitId: FK.CommitId;
     let worktree: GitWorktree;
     try {
@@ -121,9 +129,16 @@ class ReporterImpl {
   constructor(
     private _worktree: GitWorktree,
     private _commitId: FK.CommitId,
-    private _options: ReportOptions
+    private _options: FKVitestReporterOptions
   ) {
+    this._sampleSystem = this._sampleSystem.bind(this);
+    this._sampleSystem();
+  }
 
+  private _sampleSystem() {
+    this._cpuUtilization.sample();
+    this._ramUtilization.sample();
+    this._telemetryTimer = setTimeout(this._sampleSystem, 1000);
   }
 
   onInit(vitest: Vitest) {
@@ -317,6 +332,10 @@ class ReporterImpl {
   }
 
   async onTestRunEnd(testModules: ReadonlyArray<TestModule>, unhandledErrors: ReadonlyArray<SerializedError>, reason: TestRunEndReason) {
+    clearTimeout(this._telemetryTimer);
+    this._cpuUtilization.sample();
+    this._ramUtilization.sample();
+
     const duration = (Date.now() - this._startTimestamp) as FK.DurationMS;
     const report: FK.Report = ReportUtils.normalizeReport({
       flakinessProject: this._options.flakinessProject,
@@ -334,13 +353,37 @@ class ReporterImpl {
       })),
     });
     await ReportUtils.collectSources(this._worktree, report);
+    this._cpuUtilization.enrich(report);
+    this._ramUtilization.enrich(report);
+
     const outputFolder = this._options.outputFolder ?? path.join(
       process.cwd(),
       process.env.FLAKINESS_OUTPUT_DIR ?? 'flakiness-report',
     );
     await writeReport(report, [], outputFolder);
 
-    if (!process.env.FLAKINESS_DISABLE_UPLOAD)
-      await uploadReport(report, []);
+    const disableUpload = !!this._options.disableUpload || !!process.env.FLAKINESS_DISABLE_UPLOAD;
+    if (!disableUpload) {
+      await uploadReport(report, [], {
+        flakinessAccessToken: this._options.token,
+        flakinessEndpoint: this._options.endpoint,
+      });
+    }
+
+    // This is exactly the same logic as @flakiness/playwright:
+    // https://github.com/flakiness/playwright/blob/bd9174b6de74dc5d038815a6513de1d260544771/src/playwright-test.ts#L342C1-L357C6
+    const openMode = this._options.open ?? 'on-failure';
+    const shouldOpen = process.stdin.isTTY && !process.env.CI && (openMode === 'always' || (openMode === 'on-failure' && reason === 'failed'));
+    if (shouldOpen) {
+      await showReport(outputFolder);
+    } else if (!this._options.quiet) {
+      const defaultOutputFolder = path.join(process.cwd(), 'flakiness-report');
+      const folder = defaultOutputFolder === outputFolder ? '' : path.relative(process.cwd(), outputFolder);
+      log(`
+To open last Flakiness report, run:
+
+  ${chalk.cyan(`npx flakiness show ${folder}`)}
+      `);
+    }
   }
 }
