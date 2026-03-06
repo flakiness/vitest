@@ -68,10 +68,6 @@ export default class FKVitestReporter implements Reporter {
     this._impl = ReporterImpl.create(this._vitest.config.root, this._options, this._logger, this._vitest.config.config);
   }
 
-  async onTestCaseResult(testCase: TestCase) {
-    await this._impl?.onTestCaseResult(testCase);
-  }
-
   async onTestRunEnd(testModules: ReadonlyArray<TestModule>, unhandledErrors: ReadonlyArray<SerializedError>, reason: TestRunEndReason) {
     await this._impl?.onTestRunEnd(testModules, unhandledErrors, reason);
     this._impl = undefined;
@@ -84,15 +80,12 @@ class ReporterImpl {
   private _ramUtilization = new RAMUtilization({ precision: 10 });
 
   private _startTimestamp: number = Date.now();
-  private _testCaseIdToTest = new Map<string, FK.Test>();
+
   private _stdio = new Map<string, UserConsoleLog[]>();
 
   // In Vitest, all projects MUST HAVE UNIQUE NAMES.
   // So we create environments per project name.
   private _environments: FK.Environment[] = [];
-
-  private _allSuites = new Map<string, FK.Suite>();
-  private _fileSuites = new Map<string, FK.Suite>();
 
   static create(rootPath: string, options: FKVitestReporterOptions, logger: FKVitestLogger, config?: string) {
     let commitId: FK.CommitId;
@@ -136,59 +129,6 @@ class ReporterImpl {
     entries.push(log);
   }
 
-  private _ensureFKSuite(p: TestSuite | TestModule): FK.Suite {
-    let suite = this._allSuites.get(p.id);
-    if (suite)
-      return suite;
-    if ('name' in p) {
-      const parent = this._ensureFKSuite(p.parent);
-      suite = {
-        type: 'suite',
-        title: p.name,
-        location: p.location ? {
-          file: this._worktree.gitPath(p.module.moduleId),
-          column: p.location.column as FK.Number1Based,
-          line: p.location.line as FK.Number1Based,
-        } : undefined,
-      };
-      parent.suites ??= [];
-      parent.suites.push(suite);
-    } else {
-      suite = {
-        type: 'file',
-        title: p.relativeModuleId,
-        location: {
-          file: this._worktree.gitPath(p.moduleId),
-          column: 0 as FK.Number1Based,
-          line: 0 as FK.Number1Based,
-        },
-      };
-      this._fileSuites.set(p.id, suite);
-    }
-    this._allSuites.set(p.id, suite);
-    return suite;
-  }
-
-  private _ensureTest(testCase: TestCase): FK.Test {
-    let fkTest = this._testCaseIdToTest.get(testCase.id);
-    if (!fkTest) {
-      fkTest = {
-        attempts: [],
-        title: testCase.name,
-        location: testCase.location ? {
-          file: this._worktree.gitPath(testCase.module.moduleId),
-          column: testCase.location.column as FK.Number1Based,
-          line: testCase.location.line as FK.Number1Based,
-        } : undefined,
-      }
-      this._testCaseIdToTest.set(testCase.id, fkTest);
-      const parent = this._ensureFKSuite(testCase.parent);
-      parent.tests ??= [];
-      parent.tests.push(fkTest);
-    }
-    return fkTest;
-  }
-
   private _ensureEnvironmentIdx(testCase: TestCase) {
     const projectName = testCase.project.name || 'vitest';
     let idx = this._environments.findIndex(env => env.name === projectName);
@@ -212,9 +152,39 @@ class ReporterImpl {
     } : undefined;
   }
 
-  async onTestCaseResult(testCase: TestCase) {
+  private _collectSuite(fkParent: FK.Suite, suite: TestSuite) {
+    const fkSuite: FK.Suite = {
+      type: 'suite',
+      title: suite.name,
+      location: suite.location ? {
+        file: this._worktree.gitPath(suite.module.moduleId),
+        column: suite.location.column as FK.Number1Based,
+        line: suite.location.line as FK.Number1Based,
+      } : undefined,
+    };
+    fkParent.suites ??= [];
+    fkParent.suites.push(fkSuite);
+
+    for (const s of suite.children.suites())
+      this._collectSuite(fkSuite, s);
+    for (const t of suite.children.tests())
+      this._collectTest(fkSuite, t);
+  }
+
+  async _collectTest(fkParent: FK.Suite, testCase: TestCase) {
     const environmentIdx = this._ensureEnvironmentIdx(testCase);
-    const fkTest = this._ensureTest(testCase);
+    const fkTest: FK.Test = {
+      attempts: [],
+      title: testCase.name,
+      location: testCase.location ? {
+        file: this._worktree.gitPath(testCase.module.moduleId),
+        column: testCase.location.column as FK.Number1Based,
+        line: testCase.location.line as FK.Number1Based,
+      } : undefined,
+    }
+    fkParent.tests ??= [];
+    fkParent.tests.push(fkTest);
+
     const result = testCase.result();
 
     if (result.state === 'skipped') {
@@ -228,11 +198,16 @@ class ReporterImpl {
       return;
     }
 
-    const diag = testCase.diagnostic();
-    assert(diag, `Diagnostic must be present in finished test cases`);;
+    // For typecheck tests, per-case diagnostic is missing.
+    // We will stub it with a startTime.
+    // In this case, we fallback to module-level diagnostic since this is the
+    // best we have.
+    const startTime = testCase.diagnostic()?.startTime ?? this._startTimestamp;
+    const duration = testCase.diagnostic()?.duration ?? testCase.module.diagnostic()?.duration ?? 0;
+    const retryCount = testCase.diagnostic()?.retryCount ?? 0;
 
     const stdio: FK.TimedSTDIOEntry[] = [];
-    let ts = diag.startTime;
+    let ts = startTime;
     for (const entry of this._stdio.get(testCase.id) ?? []) {
       stdio.push({
         text: entry.content,
@@ -268,10 +243,10 @@ class ReporterImpl {
     // We will do it like this:
     // - we will have X retries, all with status "failed" and duration = 0
     // - the last retry will be "passed"
-    for (let i = 0; i < diag.retryCount; ++i) {
+    for (let i = 0; i < retryCount; ++i) {
       fkTest.attempts.push({
         environmentIdx,
-        startTimestamp: diag.startTime as FK.UnixTimestampMS,
+        startTimestamp: startTime as FK.UnixTimestampMS,
         duration: 0 as FK.DurationMS,
         // retries have an opposite status from expected status to
         // trigger retry.
@@ -287,8 +262,8 @@ class ReporterImpl {
 
     fkTest.attempts.push({
       environmentIdx,
-      startTimestamp: diag.startTime as FK.UnixTimestampMS,
-      duration: diag.duration as FK.DurationMS,
+      startTimestamp: startTime as FK.UnixTimestampMS,
+      duration: duration as FK.DurationMS,
       status: result.state === 'failed' ? oppositeStatus : expectedStatus,
       expectedStatus,
       // TODO: ideally, we can differentiate STDIO between attempts.
@@ -299,7 +274,7 @@ class ReporterImpl {
     });
   }
 
-  private _detectAndHandleTestDuplicates() {
+  private _detectAndHandleTestDuplicates(fileSuites: FK.Suite[]) {
     // Random title separator.
     const TITLE_SEPARATOR = crypto.randomBytes(128).toString('base64');
 
@@ -329,7 +304,7 @@ class ReporterImpl {
       parentTitles.pop();
     }
 
-    for (const fileSuite of this._fileSuites.values())
+    for (const fileSuite of fileSuites)
       visitSuite(fileSuite);
 
     // If there are no duplicates, then bail out.
@@ -390,11 +365,28 @@ class ReporterImpl {
   }
 
   async onTestRunEnd(testModules: ReadonlyArray<TestModule>, unhandledErrors: ReadonlyArray<SerializedError>, reason: TestRunEndReason) {
+    const fileSuites = testModules.map(file => {
+      const fkFileSuite: FK.Suite = {
+        type: 'file',
+        title: file.relativeModuleId,
+        location: {
+          file: this._worktree.gitPath(file.moduleId),
+          column: 0 as FK.Number1Based,
+          line: 0 as FK.Number1Based,
+        },
+      };
+      for (const suite of file.children.suites())
+        this._collectSuite(fkFileSuite, suite);
+      for (const test of file.children.tests())
+        this._collectTest(fkFileSuite, test);
+      return fkFileSuite;
+    });
+
     clearTimeout(this._telemetryTimer);
     this._cpuUtilization.sample();
     this._ramUtilization.sample();
 
-    this._detectAndHandleTestDuplicates();
+    this._detectAndHandleTestDuplicates(fileSuites);
 
     const duration = (Date.now() - this._startTimestamp) as FK.DurationMS;
     const report: FK.Report = ReportUtils.normalizeReport({
@@ -406,7 +398,7 @@ class ReporterImpl {
       environments: this._environments,
       startTimestamp: this._startTimestamp as FK.UnixTimestampMS,
       duration,
-      suites: Array.from(this._fileSuites.values()),
+      suites: fileSuites,
       unattributedErrors: unhandledErrors.map(error => ({
         message: error.message,
         stack: error.stack,
