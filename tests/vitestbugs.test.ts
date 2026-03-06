@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { assertAttempts, assertStatus, assertSuites, assertTests, generateFlakinessReport } from './utils';
 
-it.only('should handle occasional "pending" result status', async (ctx) => {
+it('should handle occasional "pending" result status', async (ctx) => {
   const { report } = await generateFlakinessReport(ctx, {
     // The following combination results in the TestCases's result.state to be "pending"
     'file.test.ts': `
