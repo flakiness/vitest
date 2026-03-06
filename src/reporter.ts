@@ -28,6 +28,7 @@ export type FKVitestReporterOptions = {
   endpoint?: string,
   token?: string,
   outputFolder?: string,
+  duplicates?: 'fail'|'rename',
   open?: OpenMode,
 }
 
@@ -73,6 +74,8 @@ export default class FKVitestReporter implements Reporter {
     this._impl = undefined;
   }
 }
+
+const gTestToTestCaseId = new WeakMap<FK.Test, string>();
 
 class ReporterImpl {
   private _telemetryTimer?: NodeJS.Timeout;
@@ -185,6 +188,8 @@ class ReporterImpl {
     fkParent.tests ??= [];
     fkParent.tests.push(fkTest);
 
+    gTestToTestCaseId.set(fkTest, testCase.id);
+
     const result = testCase.result();
 
     if (result.state === 'skipped') {
@@ -274,53 +279,19 @@ class ReporterImpl {
     });
   }
 
-  private _detectAndHandleTestDuplicates(fileSuites: FK.Suite[]) {
-    // Random title separator.
-    const TITLE_SEPARATOR = crypto.randomBytes(128).toString('base64');
-
-    const testIdToTests = new Map<string, FK.Test[]>();
-    const testFullNames = new Map<FK.Test, string>();
-
-    function visitSuite(suite: FK.Suite, parentTitles: string[] = []) {
-      parentTitles.push(suite.title);
-      for (const childSuite of suite.suites ?? [])
-        visitSuite(childSuite, parentTitles);
-      for (const test of suite.tests ?? []) {
-        // Each test's attempts is a product of a single onTestCaseResult call.
-        // All attempts for the test have the same envIdx; but just to be safe,
-        // we extract them all here in a sorted deduped list.
-        // We consider tests to be duplicate if they have the same sequence of suites,
-        // and they're being run in the same set of environments.
-        const envs = Array.from(new Set(test.attempts.map(attempt => attempt.environmentIdx ?? 0))).sort((a, b) => a - b);
-        const testId = [`[${envs.join(', ')}]`, ...parentTitles, test.title].join(TITLE_SEPARATOR);
-        testFullNames.set(test, [...parentTitles, test.title].join(' > '));
-        let tests = testIdToTests.get(testId);
-        if (!tests) {
-          tests = [];
-          testIdToTests.set(testId, tests);
-        }
-        tests.push(test);
-      }
-      parentTitles.pop();
-    }
-
-    for (const fileSuite of fileSuites)
-      visitSuite(fileSuite);
-
-    // If there are no duplicates, then bail out.
-    if (Array.from(testIdToTests.values()).every(tests => tests.length <= 1))
-      return;
-
-    // Auto-rename duplicates.
+  private _warnDuplicates(duplicates: Map<string, FK.Test[]>) {
     const warnMessages: string[] = [];
-    for (const [testId, tests] of testIdToTests) {
-      if (tests.length <= 1)
-        continue;
+    for (const [testFullName, tests] of duplicates)
+      warnMessages.push(`${tests.length} tests: ${testFullName}`);
 
-      const testFullName = testFullNames.get(tests[0])!;
-      const warnMessage = `${tests.length} tests: ${testFullName}`;
-      warnMessages.push(warnMessage);
+    this._logger.warn(`[flakiness.io] ⚠ Detected test with duplicate names!`);
+    for (const warnMessage of warnMessages)
+      this._logger.warn(`[flakiness.io] - ${warnMessage}`);
+    this._logger.warn(`[flakiness.io] Please rename tests so that they all have unique full names.`);
+  }
 
+  private _failDuplicates(duplicates: Map<string, FK.Test[]>) {
+    for (const [testFullName, tests] of duplicates) {
       // Fail every test in every duped environment, make sure to fail it with
       // a duplication error and annotation.
 
@@ -355,13 +326,72 @@ class ReporterImpl {
       for (let i = 1; i < tests.length; ++i)
         tests[i].attempts = [];
     }
+  }
 
-    if (warnMessages.length) {
-      this._logger.warn(`[flakiness.io] ⚠ Detected test with duplicate names!`);
-      for (const warnMessage of warnMessages)
-        this._logger.warn(`[flakiness.io] - ${warnMessage}`);
-      this._logger.warn(`[flakiness.io] Please rename tests so that they all have unique full names.`);
+  private _renameDuplicates(duplicates: Map<string, FK.Test[]>, testIdToTests: Map<string, FK.Test[]>) {
+    for (const [testId, tests] of duplicates) {
+      // Sort tests according to their vitest identifier.
+      tests.sort((test1, test2) => {
+        const id1 = gTestToTestCaseId.get(test1) ?? '';
+        const id2 = gTestToTestCaseId.get(test2) ?? '';
+        return id1 < id2 ? -1 : id1 > id2 ? 1 : 0;
+      });
+
+      // Add dupe suffixes to duplicated tests.
+      let dupeIndex = 2;
+      for (let i = 1; i < tests.length; ++i) {
+        while (testIdToTests.has(testId + dupeSuffix(dupeIndex)))
+          ++dupeIndex;
+        tests[i].title += dupeSuffix(dupeIndex);
+        testIdToTests.set(testId + dupeSuffix(dupeIndex), [tests[i]]);
+      }
     }
+  }
+
+  private _detectDuplicates(fileSuites: FK.Suite[]): {
+    duplicates: Map<string, FK.Test[]>,
+    testIdToTests: Map<string, FK.Test[]>,
+  } {
+    // Random title separator.
+    const TITLE_SEPARATOR = crypto.randomBytes(128).toString('base64');
+
+    const testIdToTests = new Map<string, FK.Test[]>();
+    const testFullNames = new Map<FK.Test, string>();
+
+    function visitSuite(suite: FK.Suite, parentTitles: string[] = []) {
+      parentTitles.push(suite.title);
+      for (const childSuite of suite.suites ?? [])
+        visitSuite(childSuite, parentTitles);
+      for (const test of suite.tests ?? []) {
+        // Each test's attempts is a product of a single onTestCaseResult call.
+        // All attempts for the test have the same envIdx; but just to be safe,
+        // we extract them all here in a sorted deduped list.
+        // We consider tests to be duplicate if they have the same sequence of suites,
+        // and they're being run in the same set of environments.
+        const envs = Array.from(new Set(test.attempts.map(attempt => attempt.environmentIdx ?? 0))).sort((a, b) => a - b);
+        const testId = [`[${envs.join(', ')}]`, ...parentTitles, test.title].join(TITLE_SEPARATOR);
+        testFullNames.set(test, [...parentTitles, test.title].join(' > '));
+        let tests = testIdToTests.get(testId);
+        if (!tests) {
+          tests = [];
+          testIdToTests.set(testId, tests);
+        }
+        tests.push(test);
+      }
+      parentTitles.pop();
+    }
+
+    for (const fileSuite of fileSuites)
+      visitSuite(fileSuite);
+
+    const duplicates = new Map<string, FK.Test[]>();
+    for (const [testId, tests] of testIdToTests) {
+      if (tests.length <= 1)
+        continue;
+      const testFullName = testFullNames.get(tests[0])!;
+      duplicates.set(testFullName, tests);
+    }
+    return { duplicates, testIdToTests };
   }
 
   async onTestRunEnd(testModules: ReadonlyArray<TestModule>, unhandledErrors: ReadonlyArray<SerializedError>, reason: TestRunEndReason) {
@@ -386,7 +416,15 @@ class ReporterImpl {
     this._cpuUtilization.sample();
     this._ramUtilization.sample();
 
-    this._detectAndHandleTestDuplicates(fileSuites);
+    const { duplicates, testIdToTests } = this._detectDuplicates(fileSuites);
+    if (duplicates.size) {
+      this._warnDuplicates(duplicates);
+      if (this._options.duplicates === 'rename') {
+        this._renameDuplicates(duplicates, testIdToTests);
+      } else {
+        this._failDuplicates(duplicates);
+      }
+    }
 
     const duration = (Date.now() - this._startTimestamp) as FK.DurationMS;
     const report: FK.Report = ReportUtils.normalizeReport({
@@ -440,4 +478,8 @@ To open last Flakiness report, run:
       `);
     }
   }
+}
+
+function dupeSuffix(dupeIndex: number): string {
+  return ` – dupe #${dupeIndex}`;
 }
