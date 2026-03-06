@@ -77,6 +77,12 @@ export default class FKVitestReporter implements Reporter {
 
 const gTestToTestCaseId = new WeakMap<FK.Test, string>();
 
+type TestDuplicates = {
+  tests: FK.Test[],
+  testId: string,
+  fullName: string,
+}
+
 class ReporterImpl {
   private _telemetryTimer?: NodeJS.Timeout;
   private _cpuUtilization = new CPUUtilization({ precision: 10 });
@@ -195,6 +201,9 @@ class ReporterImpl {
     if (result.state === 'skipped') {
       fkTest.attempts.push({
         environmentIdx,
+        annotations:
+          testCase.options.mode === 'skip' ? [{ type: 'skip' }] :
+          testCase.options.mode === 'todo' ? [{ type: 'todo' }] : undefined,
         startTimestamp: Date.now() as FK.UnixTimestampMS,
         duration: 0 as FK.DurationMS,
         status: 'skipped',
@@ -279,10 +288,10 @@ class ReporterImpl {
     });
   }
 
-  private _warnDuplicates(duplicates: Map<string, FK.Test[]>) {
+  private _warnDuplicates(duplicates: TestDuplicates[]) {
     const warnMessages: string[] = [];
-    for (const [testFullName, tests] of duplicates)
-      warnMessages.push(`${tests.length} tests: ${testFullName}`);
+    for (const duplicate of duplicates)
+      warnMessages.push(`${duplicate.tests.length} tests: ${duplicate.fullName}`);
 
     this._logger.warn(`[flakiness.io] ⚠ Detected test with duplicate names!`);
     for (const warnMessage of warnMessages)
@@ -290,8 +299,8 @@ class ReporterImpl {
     this._logger.warn(`[flakiness.io] Please rename tests so that they all have unique full names.`);
   }
 
-  private _failDuplicates(duplicates: Map<string, FK.Test[]>) {
-    for (const [testFullName, tests] of duplicates) {
+  private _failDuplicates(duplicates: TestDuplicates[]) {
+    for (const { fullName, tests } of duplicates) {
       // Fail every test in every duped environment, make sure to fail it with
       // a duplication error and annotation.
 
@@ -307,15 +316,15 @@ class ReporterImpl {
         status: 'failed',
         errors: [{
           message: [
-            `Flakiness.io detected ${tests.length} tests with identical full name "${testFullName}"`,
+            `Flakiness.io detected ${tests.length} tests with identical full name "${fullName}"`,
             `Please rename tests to ensure they all have unique full names.`
           ].join('\n'),
         }],
         annotations: [{
-          type: 'duplicates',
+          type: 'dupe',
           description: [
             `Flakiness.io failed to process this test because there are ${tests.length} tests with`,
-            `identical full name: "${testFullName}".`,
+            `identical full name: "${fullName}".`,
             `Please make sure that all your tests have unique full names.`,
           ].join('\n'),
         }]
@@ -328,8 +337,8 @@ class ReporterImpl {
     }
   }
 
-  private _renameDuplicates(duplicates: Map<string, FK.Test[]>, testIdToTests: Map<string, FK.Test[]>) {
-    for (const [testId, tests] of duplicates) {
+  private _renameDuplicates(duplicates: TestDuplicates[], testIdToTests: Map<string, FK.Test[]>) {
+    for (const { tests, testId } of duplicates) {
       // Sort tests according to their vitest identifier.
       tests.sort((test1, test2) => {
         const id1 = gTestToTestCaseId.get(test1) ?? '';
@@ -343,13 +352,17 @@ class ReporterImpl {
         while (testIdToTests.has(testId + dupeSuffix(dupeIndex)))
           ++dupeIndex;
         tests[i].title += dupeSuffix(dupeIndex);
+        tests[i].attempts.forEach(attempt => {
+          attempt.annotations ??= [];
+          attempt.annotations.push({ type: 'dupe' });
+        });
         testIdToTests.set(testId + dupeSuffix(dupeIndex), [tests[i]]);
       }
     }
   }
 
   private _detectDuplicates(fileSuites: FK.Suite[]): {
-    duplicates: Map<string, FK.Test[]>,
+    duplicates: TestDuplicates[],
     testIdToTests: Map<string, FK.Test[]>,
   } {
     // Random title separator.
@@ -384,12 +397,12 @@ class ReporterImpl {
     for (const fileSuite of fileSuites)
       visitSuite(fileSuite);
 
-    const duplicates = new Map<string, FK.Test[]>();
+    const duplicates: TestDuplicates[] = [];
     for (const [testId, tests] of testIdToTests) {
       if (tests.length <= 1)
         continue;
-      const testFullName = testFullNames.get(tests[0])!;
-      duplicates.set(testFullName, tests);
+      const fullName = testFullNames.get(tests[0])!;
+      duplicates.push({ fullName, testId, tests });
     }
     return { duplicates, testIdToTests };
   }
@@ -417,7 +430,7 @@ class ReporterImpl {
     this._ramUtilization.sample();
 
     const { duplicates, testIdToTests } = this._detectDuplicates(fileSuites);
-    if (duplicates.size) {
+    if (duplicates.length) {
       this._warnDuplicates(duplicates);
       if (this._options.duplicates === 'rename') {
         this._renameDuplicates(duplicates, testIdToTests);

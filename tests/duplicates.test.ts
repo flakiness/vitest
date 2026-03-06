@@ -27,7 +27,7 @@ it('should fail duplicate test names', async (ctx) => {
   expect(error.message).toContain('sum.test.ts > should work');
 
   const [annotation] = assertCount(attempt.annotations, 1);
-  expect(annotation.type).toBe('duplicates');
+  expect(annotation.type).toBe('dupe');
   expect(annotation.description).toContain('3 tests');
   expect(annotation.description).toContain('sum.test.ts > should work');
 
