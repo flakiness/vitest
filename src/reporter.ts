@@ -198,7 +198,9 @@ class ReporterImpl {
 
     const result = testCase.result();
 
-    if (result.state === 'skipped') {
+    // Technically, we should never get a "pending" here, but this somehow
+    // happens when running tests against vitest own tests.
+    if (result.state === 'skipped' || result.state === 'pending') {
       fkTest.attempts.push({
         environmentIdx,
         annotations:
