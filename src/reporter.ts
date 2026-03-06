@@ -248,6 +248,8 @@ class ReporterImpl {
         column: annotation.location.column as FK.Number1Based,
       } : undefined,
     }));
+    if (testCase.options.fails)
+      annotations.push({ type: 'fail' });
 
     const expectedStatus = testCase.options.fails ? 'failed' : 'passed';
     const oppositeStatus = expectedStatus === 'failed' ? 'passed' : 'failed';
@@ -268,9 +270,11 @@ class ReporterImpl {
         expectedStatus,
         // TODO: ideally, we can differentiate STDIO between attempts.
         // However, vitest doesn't let us do so easily.
-        stdio,
-        errors,
-        annotations,
+        // We slice these arrays just to be safe: if someone downstream from us
+        // decides to push a new annotation, then they can do it per-attempt safely.
+        stdio: stdio.slice(),
+        errors: errors.slice(),
+        annotations: annotations.slice(),
       });
     }
 
