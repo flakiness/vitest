@@ -1,3 +1,5 @@
+[![Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fflakiness.io%2Fapi%2Fbadge%3Finput%3D%257B%2522badgeToken%2522%253A%2522badge-6yduOnt2SwYyzktcUZjI4Z%2522%257D)](https://flakiness.io/flakiness/vitest&color=lightgreen)
+
 # Flakiness.io Vitest Reporter
 
 A custom Vitest reporter that generates Flakiness Reports from your Vitest test runs. The reporter automatically converts Vitest test results into the standardized [Flakiness JSON format](https://github.com/flakiness/flakiness-report), capturing test outcomes, system utilization, and environment information.
