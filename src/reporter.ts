@@ -20,8 +20,6 @@ interface UserConsoleLog {
   size: number;
 }
 
-export type OpenMode = 'always' | 'never' | 'on-failure';
-
 export type FKVitestReporterOptions = {
   disableUpload?: boolean,
   flakinessProject?: string,
@@ -29,7 +27,6 @@ export type FKVitestReporterOptions = {
   token?: string,
   outputFolder?: string,
   duplicates?: 'fail'|'rename',
-  open?: OpenMode,
 }
 
 export interface FKVitestLogger {
@@ -483,19 +480,13 @@ class ReporterImpl {
 
     // This is exactly the same logic as @flakiness/playwright:
     // https://github.com/flakiness/playwright/blob/bd9174b6de74dc5d038815a6513de1d260544771/src/playwright-test.ts#L342C1-L357C6
-    const openMode = this._options.open ?? 'on-failure';
-    const shouldOpen = process.stdin.isTTY && !process.env.CI && (openMode === 'always' || (openMode === 'on-failure' && reason === 'failed'));
-    if (shouldOpen) {
-      await showReport(outputFolder);
-    } else {
-      const defaultOutputFolder = path.join(process.cwd(), 'flakiness-report');
-      const folder = defaultOutputFolder === outputFolder ? '' : path.relative(process.cwd(), outputFolder);
-      this._logger.log(`
+    const defaultOutputFolder = path.join(process.cwd(), 'flakiness-report');
+    const folder = defaultOutputFolder === outputFolder ? '' : path.relative(process.cwd(), outputFolder);
+    this._logger.log(`
 To open last Flakiness report, run:
 
   ${chalk.cyan(`npx flakiness show ${folder}`)}
-      `);
-    }
+    `);
   }
 }
 

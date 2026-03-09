@@ -20,7 +20,6 @@ A custom Vitest reporter that generates Flakiness Reports from your Vitest test 
   - [`token?: string`](#token-string)
   - [`outputFolder?: string`](#outputfolder-string)
   - [`duplicates?: 'fail' | 'rename'`](#duplicates-fail--rename)
-  - [`open?: 'always' | 'never' | 'on-failure'`](#open-always--never--on-failure)
   - [`disableUpload?: boolean`](#disableupload-boolean)
 - [Environment Variables](#environment-variables)
 - [Example Configuration](#example-configuration)
@@ -220,20 +219,6 @@ reporters: [
 ```
 
 
-### `open?: 'always' | 'never' | 'on-failure'`
-
-Controls when the report viewer should automatically open in your browser after test completion.
-
-- **`'on-failure'`** (default): Opens the report only if tests failed and running in an interactive terminal (not in CI)
-- **`'always'`**: Always opens the report after test completion (when running in an interactive terminal)
-- **`'never'`**: Never automatically opens the report
-
-```typescript
-reporters: [
-  ['@flakiness/vitest', { open: 'always' }]
-]
-```
-
 ### `disableUpload?: boolean`
 
 When set to `true`, prevents uploading the report to Flakiness.io. The report is still generated locally. Can also be controlled via the `FLAKINESS_DISABLE_UPLOAD` environment variable.
@@ -271,7 +256,6 @@ export default defineConfig({
         token: process.env.FLAKINESS_ACCESS_TOKEN,
         outputFolder: './flakiness-report',
         duplicates: 'fail',
-        open: 'on-failure',
         disableUpload: false,
       }]
     ],
