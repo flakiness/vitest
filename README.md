@@ -11,7 +11,7 @@ A custom Vitest reporter that generates Flakiness Reports from your Vitest test 
 - [Viewing Reports](#viewing-reports)
 - [Features](#features)
   - [Test Location Tracking](#test-location-tracking)
-  - [Duplicate Test Detection](#duplicate-test-detection)
+  - [Handling Test Duplicates](#handling-test-duplicates)
   - [Environment Detection](#environment-detection)
   - [CI Integration](#ci-integration)
 - [Configuration Options](#configuration-options)
@@ -19,6 +19,7 @@ A custom Vitest reporter that generates Flakiness Reports from your Vitest test 
   - [`endpoint?: string`](#endpoint-string)
   - [`token?: string`](#token-string)
   - [`outputFolder?: string`](#outputfolder-string)
+  - [`duplicates?: 'fail' | 'rename'`](#duplicates-fail--rename)
   - [`open?: 'always' | 'never' | 'on-failure'`](#open-always--never--on-failure)
   - [`disableUpload?: boolean`](#disableupload-boolean)
 - [Environment Variables](#environment-variables)
@@ -97,16 +98,30 @@ npx flakiness show ./flakiness-report
 
 When `includeTaskLocation: true` is set in your Vitest config, the reporter records the exact file, line, and column for each test. This enables precise navigation from the Flakiness.io dashboard back to your source code.
 
-### Duplicate Test Detection
+### Handling Test Duplicates
 
-Vitest allows multiple tests to share the same name:
+Vitest allows creating tests with identical names:
 
 ```typescript
+// Trivial duplicates
 it('should work', () => { /* ... */ });
 it('should work', () => { /* ... */ });
+
+// More common way to end up with test duplicates:
+it.for([
+  { input: 1, expected: 2 },
+  { input: 1, expected: 3 },
+])('should handle $input', ({ input, expected }) => { /* ... */ });
 ```
 
-Flakiness.io relies on full test names (all parent suite names + test name) to construct test history, so each test must have a unique full name. The reporter detects duplicates, issues warnings, and marks them as failed with a descriptive error message. Rename your tests to have unique full names to resolve this.
+Flakiness.io, however, **does not allow** test duplicates.
+
+Flakiness.io considers two tests to be *duplicates* when they:
+1. Share the same parent suite hierarchy
+2. Have the same test name
+3. And run in the same Vitest project
+
+Flakiness.io relies on full test names to construct test history, so each test must have a unique full name. When Vitest reporter detects tests with identical full names, it issues warnings and handles them according to the [`duplicates`](#duplicates-fail--rename) option.
 
 ### Environment Detection
 
@@ -188,6 +203,22 @@ reporters: [
 ]
 ```
 
+### `duplicates?: 'fail' | 'rename'`
+
+Controls how the reporter handles tests with duplicate full names. Defaults to `'fail'`.
+
+- **`'fail'`** (default): Duplicate tests are marked as failed with a descriptive error message and a `dupe` annotation. The first duplicate gets a single failed attempt explaining the problem; the remaining duplicates are stripped of their attempts (effectively hidden from the report). This is the recommended mode — it surfaces the problem so you can fix it by renaming your tests.
+- **`'rename'`**: Duplicate tests are automatically renamed by appending a suffix (e.g., ` – dupe #2`, ` – dupe #3`) to their titles. Each renamed test also receives a `dupe` annotation on all its attempts. The first test with a given name keeps its original title; only the subsequent duplicates are renamed.
+  > [!WARNING]
+  > This mode is **not recommended** for regular use. There is no guarantee that test histories will remain stable for duplicate tests, since the renaming is based on internal Vitest identifiers that may change between runs. This mode exists to help evaluate the reporter against large Vitest projects that have not yet resolved their duplicate test names.
+
+```typescript
+reporters: [
+  ['@flakiness/vitest', { duplicates: 'rename' }]
+]
+```
+
+
 ### `open?: 'always' | 'never' | 'on-failure'`
 
 Controls when the report viewer should automatically open in your browser after test completion.
@@ -238,6 +269,7 @@ export default defineConfig({
         endpoint: process.env.FLAKINESS_ENDPOINT,
         token: process.env.FLAKINESS_ACCESS_TOKEN,
         outputFolder: './flakiness-report',
+        duplicates: 'fail',
         open: 'on-failure',
         disableUpload: false,
       }]
