@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import crypto from 'crypto';
 import assert from 'node:assert';
 import path from 'node:path';
-import type { SerializedError, TestCase, TestModule, TestRunEndReason, TestSuite, Vitest } from 'vitest/node';
+import type { SerializedError, TestCase, TestModule, TestProject, TestRunEndReason, TestSuite, Vitest } from 'vitest/node';
 import type { Reporter } from 'vitest/reporters';
 
 //TODO: the following types must be imported from vitest, but the types
@@ -63,7 +63,7 @@ export default class FKVitestReporter implements Reporter {
     assert(this._vitest, 'onInit must be called before onTestRunStart');
     // Watch mode starts multiple runs; for each test run, we create a new
     // reporter.
-    this._impl = ReporterImpl.create(this._vitest.config.root, this._options, this._logger, this._vitest.config.config);
+    this._impl = ReporterImpl.create(this._vitest.config.root, this._vitest.projects, this._options, this._logger, this._vitest.config.config);
   }
 
   async onTestRunEnd(testModules: ReadonlyArray<TestModule>, unhandledErrors: ReadonlyArray<SerializedError>, reason: TestRunEndReason) {
@@ -89,17 +89,15 @@ class ReporterImpl {
 
   private _stdio = new Map<string, UserConsoleLog[]>();
 
-  // In Vitest, all projects MUST HAVE UNIQUE NAMES.
-  // So we create environments per project name.
   private _environments: FK.Environment[] = [];
 
-  static create(rootPath: string, options: FKVitestReporterOptions, logger: FKVitestLogger, config?: string) {
+  static create(rootPath: string, projects: TestProject[], options: FKVitestReporterOptions, logger: FKVitestLogger, config?: string) {
     let commitId: FK.CommitId;
     let worktree: GitWorktree;
     try {
       worktree = GitWorktree.create(rootPath);
       commitId = worktree.headCommitId();
-      return new ReporterImpl(worktree, commitId, options, logger, config);
+      return new ReporterImpl(worktree, projects, commitId, options, logger, config);
     } catch (e) {
       logger.warn(`[flakiness.io] Failed to fetch commit info - is this a git repo?`);
       logger.error(`[flakiness.io] Report is NOT generated.`);
@@ -109,11 +107,17 @@ class ReporterImpl {
 
   constructor(
     private _worktree: GitWorktree,
+    projects: TestProject[],
     private _commitId: FK.CommitId,
     private _options: FKVitestReporterOptions,
     private _logger: FKVitestLogger,
     private _configPath?: string,
   ) {
+    // In Vitest, all projects MUST HAVE UNIQUE NAMES.
+    // So we create environments per project name.
+    this._environments = projects.map(project => ReportUtils.createEnvironment({
+      name: this._envName(project),
+    }));
     this._sampleSystem = this._sampleSystem.bind(this);
     this._sampleSystem();
   }
@@ -135,16 +139,8 @@ class ReporterImpl {
     entries.push(log);
   }
 
-  private _ensureEnvironmentIdx(testCase: TestCase) {
-    const projectName = testCase.project.name || 'vitest';
-    let idx = this._environments.findIndex(env => env.name === projectName);
-    if (idx === -1) {
-      idx = this._environments.length;
-      this._environments.push(ReportUtils.createEnvironment({
-        name: projectName,
-      }));
-    }
-    return idx;
+  private _envName(project: TestProject) {
+    return project.name || 'vitest';
   }
 
   private _errorLocation(stacks: ParsedStack[]|undefined, testFile?: string): FK.Location | undefined {
@@ -178,7 +174,8 @@ class ReporterImpl {
   }
 
   async _collectTest(fkParent: FK.Suite, testCase: TestCase) {
-    const environmentIdx = this._ensureEnvironmentIdx(testCase);
+    const environmentIdx = this._environments.findIndex(env => env.name === this._envName(testCase.project));
+    assert(environmentIdx !== -1, `Failed to find environment for test ${testCase.fullName}`);
     const fkTest: FK.Test = {
       attempts: [],
       title: testCase.name,
