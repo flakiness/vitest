@@ -1,5 +1,5 @@
 import { FlakinessReport as FK } from '@flakiness/flakiness-report';
-import { CIUtils, CPUUtilization, GitWorktree, RAMUtilization, ReportUtils, showReport, uploadReport, writeReport } from '@flakiness/sdk';
+import { CIUtils, CPUUtilization, GitWorktree, RAMUtilization, ReportUtils, uploadReport, writeReport } from '@flakiness/sdk';
 import type { ParsedStack } from '@vitest/utils';
 import chalk from 'chalk';
 import crypto from 'crypto';
@@ -453,7 +453,10 @@ class ReporterImpl {
       startTimestamp: this._startTimestamp as FK.UnixTimestampMS,
       duration,
       suites: fileSuites,
-      unattributedErrors: unhandledErrors.map(error => ({
+      unattributedErrors: [
+        unhandledErrors,
+        testModules.map(t => t.errors()).flat(),
+      ].flat().map(error => ({
         message: error.message,
         stack: error.stack,
         location: this._errorLocation(error.stacks),

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { assertAttempts, assertErrors, assertSuites, assertTests, generateFlakinessReport } from './utils';
+import { assertCount, assertAttempts, assertErrors, assertSuites, assertTests, generateFlakinessReport } from './utils';
 
 it('should capture test errors', async (ctx) => {
   const { report } = await generateFlakinessReport(ctx, {
@@ -11,6 +11,7 @@ it('should capture test errors', async (ctx) => {
       });
     `,
   });
+  assertCount(report.unattributedErrors, 0);
   const [file] = assertSuites(report.suites, 1);
   const [test1] = assertTests(file.tests, 1);
   const [attempt] = assertAttempts(test1, 1);
@@ -42,4 +43,13 @@ it('should capture unhandled errors', async (ctx) => {
   expect(report.unattributedErrors?.length).toBe(1);
   const err = report.unattributedErrors![0];
   expect(err.message).toBe('Unhinged error!');
+});
+
+it('should generate report when tests have syntax errors', async (ctx) => {
+  const { report } = await generateFlakinessReport(ctx, {
+    'file.test.ts': `
+      import (){{ expect, it, describe from 'vitest';
+    `,
+  });
+  expect(report.unattributedErrors?.length).toBe(1);
 });
