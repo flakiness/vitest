@@ -1,6 +1,6 @@
 import { FlakinessReport } from '@flakiness/flakiness-report';
 import { expect, it } from 'vitest';
-import { assertAttempts, assertSTDIO, assertSuites, assertTests, generateFlakinessReport } from './utils';
+import { assertCount, generateFlakinessReport } from './utils';
 
 it('should capture stdio', async (ctx) => {
   const { report } = await generateFlakinessReport(ctx, {
@@ -15,11 +15,11 @@ it('should capture stdio', async (ctx) => {
       });
     `,
   });
-  const [file] = assertSuites(report.suites, 1);
-  const [test1] = assertTests(file.tests, 1);
-  const [attempt] = assertAttempts(test1, 1);
+  const [file] = assertCount(report.suites, 1);
+  const [test1] = assertCount(file.tests, 1);
+  const [attempt] = assertCount(test1.attempts, 1);
   expect(attempt.stdio?.length).toBe(2);
-  const [stdout, stderr] = assertSTDIO(attempt.stdio, 2);
+  const [stdout, stderr] = assertCount(attempt.stdio, 2);
   expect((stdout as any).text).toBe('foo\n');
   expect(stdout.stream ?? FlakinessReport.STREAM_STDOUT).toBe(FlakinessReport.STREAM_STDOUT);
 

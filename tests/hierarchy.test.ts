@@ -1,6 +1,6 @@
 import { ReportUtils } from '@flakiness/sdk';
 import { expect, it } from 'vitest';
-import { assertSuites, generateFlakinessReport } from './utils';
+import { assertCount, generateFlakinessReport } from './utils';
 
 it('should property report hierarchy', async (ctx) => {
   const { report } = await generateFlakinessReport(ctx, {
@@ -28,7 +28,7 @@ it('should property report hierarchy', async (ctx) => {
       });
     `,
   });
-  const [file1, file2] = assertSuites(report.suites, 2);
+  const [file1, file2] = assertCount(report.suites, 2);
   expect(file1.title).toBe('file-1.test.ts');
   expect(file2.title).toBe('file-2.test.ts');
 

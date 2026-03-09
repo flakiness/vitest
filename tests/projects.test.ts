@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { assertAttempts, assertSuites, assertTests, generateFlakinessReport } from './utils';
+import { assertCount, generateFlakinessReport } from './utils';
 
 it('should capture multiple projects', async (ctx) => {
   const { report } = await generateFlakinessReport(ctx, {
@@ -29,9 +29,9 @@ it('should capture multiple projects', async (ctx) => {
       it('test', async () => { });
     `,
   });
-  const [file] = assertSuites(report.suites, 1);
-  const [test] = assertTests(file.tests, 1);
-  const [attempt1, attempt2] = assertAttempts(test, 2);
+  const [file] = assertCount(report.suites, 1);
+  const [test] = assertCount(file.tests, 1);
+  const [attempt1, attempt2] = assertCount(test.attempts, 2);
   expect(attempt1.environmentIdx ?? 0).not.toBe(attempt2.environmentIdx ?? 0);
   expect(report.environments.length).toBe(2);
   expect(report.environments.some(env => env.name === 'node')).toBeTruthy();

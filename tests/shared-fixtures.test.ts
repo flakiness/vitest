@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { assertSuites, assertTests, generateFlakinessReport } from './utils';
+import { assertCount, generateFlakinessReport } from './utils';
 
 it('should report tests from shared fixtures imported by multiple spec files', async (ctx) => {
   const { report } = await generateFlakinessReport(ctx, {
@@ -16,8 +16,8 @@ it('should report tests from shared fixtures imported by multiple spec files', a
     `,
   });
 
-  const [suiteA, suiteB] = assertSuites(report.suites, 2);
+  const [suiteA, suiteB] = assertCount(report.suites, 2);
 
-  assertTests(suiteA.tests, 1);
-  assertTests(suiteB.tests, 1);
+  assertCount(suiteA.tests, 1);
+  assertCount(suiteB.tests, 1);
 });

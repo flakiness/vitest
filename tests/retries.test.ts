@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { assertAttempts, assertSuites, assertTests, generateFlakinessReport } from './utils';
+import { assertCount, generateFlakinessReport } from './utils';
 
 it('should handle retries', async (ctx) => {
   const { report } = await generateFlakinessReport(ctx, {
@@ -16,13 +16,13 @@ it('should handle retries', async (ctx) => {
       it('noretry', async () => { });
     `
   });
-  const [suite] = assertSuites(report.suites, 1);
-  const [testWithRetries, testNoRetry] = assertTests(suite.tests, 2);
+  const [suite] = assertCount(report.suites, 1);
+  const [testWithRetries, testNoRetry] = assertCount(suite.tests, 2);
   expect(testWithRetries.title).toBe('retryretry');
-  const [attempt1, attempt2, attempt3] = assertAttempts(testWithRetries, 3);
+  const [attempt1, attempt2, attempt3] = assertCount(testWithRetries.attempts, 3);
   expect(attempt1.status ?? 'passed').toBe('failed');
   expect(attempt2.status ?? 'passed').toBe('failed');
   expect(attempt3.status ?? 'passed').toBe('passed');
 
-  assertAttempts(testNoRetry, 1);
+  assertCount(testNoRetry.attempts, 1);
 });

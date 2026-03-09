@@ -96,35 +96,6 @@ function slugify(text: string) {
     .toLowerCase();
 }
 
-export function assertSuites(suites: FlakinessReport.Suite[]|undefined, length: number): FlakinessReport.Suite[] {
-  expect(suites?.length ?? 0).toBe(length);
-  return suites!;
-}
-
-export function assertTests(tests: FlakinessReport.Test[]|undefined, length: number): FlakinessReport.Test[] {
-  expect(tests?.length ?? 0).toBe(length);
-  return tests!;
-}
-
-export function assertTags(tags: string[]|undefined, length: number): string[] {
-  expect(tags?.length ?? 0).toBe(length);
-  return tags!;
-}
-
-export function assertAttempts(test: FlakinessReport.Test, length: number): FlakinessReport.RunAttempt[] {
-  expect(test.attempts.length).toBe(length);
-  return test.attempts;
-}
-
-export function assertErrors(errors: FlakinessReport.ReportError[]|undefined, length: number): FlakinessReport.ReportError[] {
-  expect(errors?.length).toBe(length);
-  return errors!;
-}
-
-export function assertSTDIO(stdio: FlakinessReport.TimedSTDIOEntry[]|undefined, length: number): FlakinessReport.TimedSTDIOEntry[] {
-  expect(stdio?.length).toBe(length);
-  return stdio!;
-}
 
 export function assertStatus(status: FlakinessReport.TestStatus|undefined, expected: FlakinessReport.TestStatus) {
   expect(status ?? 'passed').toBe(expected);
