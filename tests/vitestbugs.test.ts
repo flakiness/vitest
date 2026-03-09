@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { assertAttempts, assertStatus, assertSuites, assertTests, generateFlakinessReport } from './utils';
+import { assertCount, assertStatus, generateFlakinessReport } from './utils';
 
 it('should handle occasional "pending" result status', async (ctx) => {
   const { report } = await generateFlakinessReport(ctx, {
@@ -16,13 +16,13 @@ it('should handle occasional "pending" result status', async (ctx) => {
     `
   });
   expect(report.category).toBe('vitest');
-  const [file] = assertSuites(report.suites, 1);
-  const [baSuite] = assertSuites(file.suites, 1);
-  const [bazSuite] = assertSuites(baSuite.suites, 1);
-  const [skipped] = assertTests(bazSuite.tests, 1);
+  const [file] = assertCount(report.suites, 1);
+  const [baSuite] = assertCount(file.suites, 1);
+  const [bazSuite] = assertCount(baSuite.suites, 1);
+  const [skipped] = assertCount(bazSuite.tests, 1);
 
   expect(skipped.title).toBe('test');
-  const [attempt] = assertAttempts(skipped, 1);
+  const [attempt] = assertCount(skipped.attempts, 1);
   assertStatus(attempt.status, 'skipped');
   assertStatus(attempt.expectedStatus, 'skipped');
   expect(attempt.startTimestamp ?? 0).toBeGreaterThan(0);

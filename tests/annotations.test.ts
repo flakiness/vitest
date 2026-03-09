@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { assertAttempts, assertSuites, assertTests, generateFlakinessReport } from './utils';
+import { assertCount, generateFlakinessReport } from './utils';
 
 it('should capture test annotations', async (ctx) => {
   const { report } = await generateFlakinessReport(ctx, {
@@ -11,9 +11,9 @@ it('should capture test annotations', async (ctx) => {
       });
     `,
   });
-  const [file1] = assertSuites(report.suites, 1);
-  const [test1] = assertTests(file1.tests, 1);
-  const [attempt1] = assertAttempts(test1, 1);
+  const [file1] = assertCount(report.suites, 1);
+  const [test1] = assertCount(file1.tests, 1);
+  const [attempt1] = assertCount(test1.attempts, 1);
   expect(attempt1.annotations).toEqual([{
     type: 'issues',
     description: 'https://github.com/vitest-dev/vitest/pull/7953',

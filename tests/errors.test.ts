@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { assertCount, assertAttempts, assertErrors, assertSuites, assertTests, generateFlakinessReport } from './utils';
+import { assertCount, generateFlakinessReport } from './utils';
 
 it('should capture test errors', async (ctx) => {
   const { report } = await generateFlakinessReport(ctx, {
@@ -12,10 +12,10 @@ it('should capture test errors', async (ctx) => {
     `,
   });
   assertCount(report.unattributedErrors, 0);
-  const [file] = assertSuites(report.suites, 1);
-  const [test1] = assertTests(file.tests, 1);
-  const [attempt] = assertAttempts(test1, 1);
-  const [error] = assertErrors(attempt.errors, 1);
+  const [file] = assertCount(report.suites, 1);
+  const [test1] = assertCount(file.tests, 1);
+  const [attempt] = assertCount(test1.attempts, 1);
+  const [error] = assertCount(attempt.errors, 1);
   expect(error.message).toContain('expected 1 to be 2');
   expect(error.location).toEqual({
     line: 5,
