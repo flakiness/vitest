@@ -41,6 +41,7 @@ it('should capture unhandled errors', async (ctx) => {
     `,
   });
   expect(report.unattributedErrors?.length).toBe(1);
+  assertCount(report.environments, 1);
   const err = report.unattributedErrors![0];
   expect(err.message).toBe('Unhinged error!');
 });
@@ -52,4 +53,5 @@ it('should generate report when tests have syntax errors', async (ctx) => {
     `,
   });
   expect(report.unattributedErrors?.length).toBe(1);
+  assertCount(report.environments, 1);
 });
