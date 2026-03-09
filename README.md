@@ -207,10 +207,11 @@ reporters: [
 
 Controls how the reporter handles tests with duplicate full names. Defaults to `'fail'`.
 
+> [!WARNING]
+> The `'rename'` mode is **not recommended** for regular use. There is no guarantee that test histories will remain stable for duplicate tests, since the renaming is based on internal Vitest identifiers that may change between runs. This mode exists to help evaluate the reporter against large Vitest projects that have not yet resolved their duplicate test names.
+
 - **`'fail'`** (default): Duplicate tests are marked as failed with a descriptive error message and a `dupe` annotation. The first duplicate gets a single failed attempt explaining the problem; the remaining duplicates are stripped of their attempts (effectively hidden from the report). This is the recommended mode — it surfaces the problem so you can fix it by renaming your tests.
 - **`'rename'`**: Duplicate tests are automatically renamed by appending a suffix (e.g., ` – dupe #2`, ` – dupe #3`) to their titles. Each renamed test also receives a `dupe` annotation on all its attempts. The first test with a given name keeps its original title; only the subsequent duplicates are renamed.
-  > [!WARNING]
-  > This mode is **not recommended** for regular use. There is no guarantee that test histories will remain stable for duplicate tests, since the renaming is based on internal Vitest identifiers that may change between runs. This mode exists to help evaluate the reporter against large Vitest projects that have not yet resolved their duplicate test names.
 
 ```typescript
 reporters: [
