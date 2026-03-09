@@ -19,8 +19,8 @@ importers:
         version: 5.6.2
     devDependencies:
       '@flakiness/vitest':
-        specifier: 0.1.0-alpha.2
-        version: 0.1.0-alpha.2(zod@4.3.6)
+        specifier: 1.1.0
+        version: 1.1.0(zod@4.3.6)
       '@types/node':
         specifier: ^25.3.3
         version: 25.3.3
@@ -215,8 +215,8 @@ packages:
     peerDependencies:
       '@flakiness/flakiness-report': ^0.27.0
 
-  '@flakiness/vitest@0.1.0-alpha.2':
-    resolution: {integrity: sha512-zDVzuhqcPWZxJ/OKyPtsyjZ58m9XMRvRmMZwwpNCP7p3w05SEpAY7oZhuxskfM1TGOw1uDyFIpf8eI5rFO2P0A==}
+  '@flakiness/vitest@1.1.0':
+    resolution: {integrity: sha512-fBSwpQKd3xoz7zkuUzb/Vg7e7j1z+d9ZMus/Sqi0bsfDieLjbojxk1vMslT57lXmUFIExQC1UBR1bVf196SLFg==}
 
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
@@ -1041,7 +1041,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@flakiness/vitest@0.1.0-alpha.2(zod@4.3.6)':
+  '@flakiness/vitest@1.1.0(zod@4.3.6)':
     dependencies:
       '@flakiness/flakiness-report': 0.27.0(zod@4.3.6)
       '@flakiness/sdk': 2.2.0(@flakiness/flakiness-report@0.27.0(zod@4.3.6))
