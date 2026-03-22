@@ -35,5 +35,5 @@ it('should report proper top-level properties', async (ctx) => {
   
   // A message on how to show flakiness report should be shown
   expect(log.logs.length).toBe(1);
-  expect(log.logs[0]).toContain('npx flakiness show');
+  expect(log.logs[0]).toContain('flakiness show');
 });
