@@ -1,5 +1,5 @@
 import { FlakinessReport as FK } from '@flakiness/flakiness-report';
-import { CIUtils, CPUUtilization, GitWorktree, RAMUtilization, ReportUtils, uploadReport, writeReport } from '@flakiness/sdk';
+import { CIUtils, CPUUtilization, GitWorktree, RAMUtilization, ReportUtils, showReportCommand, uploadReport, writeReport } from '@flakiness/sdk';
 import type { ParsedStack } from '@vitest/utils';
 import crypto from 'crypto';
 import assert from 'node:assert';
@@ -482,14 +482,11 @@ class ReporterImpl {
       });
     }
 
-    // This is exactly the same logic as @flakiness/playwright:
-    // https://github.com/flakiness/playwright/blob/bd9174b6de74dc5d038815a6513de1d260544771/src/playwright-test.ts#L342C1-L357C6
-    const defaultOutputFolder = path.join(process.cwd(), 'flakiness-report');
-    const folder = defaultOutputFolder === outputFolder ? '' : path.relative(process.cwd(), outputFolder);
+    const command = showReportCommand(outputFolder);
     this._logger.log(`
 To open last Flakiness report, run:
 
-  ${styleText('cyan', `npx flakiness show ${folder}`)}
+  ${styleText('cyan', command)}
     `);
   }
 }
