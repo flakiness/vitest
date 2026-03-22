@@ -1,10 +1,10 @@
 import { FlakinessReport as FK } from '@flakiness/flakiness-report';
 import { CIUtils, CPUUtilization, GitWorktree, RAMUtilization, ReportUtils, uploadReport, writeReport } from '@flakiness/sdk';
 import type { ParsedStack } from '@vitest/utils';
-import chalk from 'chalk';
 import crypto from 'crypto';
 import assert from 'node:assert';
 import path from 'node:path';
+import * as nodeUtil from 'node:util';
 import type { SerializedError, TestCase, TestModule, TestProject, TestRunEndReason, TestSuite, Vitest } from 'vitest/node';
 import type { Reporter } from 'vitest/reporters';
 
@@ -35,12 +35,16 @@ export interface FKVitestLogger {
   error(txt: string): void;
 }
 
+type StyleTextFormat = Parameters<NonNullable<typeof nodeUtil.styleText>>[0];
+
+const styleText = (format: StyleTextFormat, text: string) => nodeUtil.styleText?.(format, text) ?? text;
+
 export default class FKVitestReporter implements Reporter {
   private _impl?: ReporterImpl;
   private _vitest?: Vitest;
   private _logger: FKVitestLogger = {
-    warn: (txt: string) => console.warn(chalk.yellow(txt)),
-    error: (txt: string) => console.error(chalk.red(txt)),
+    warn: (txt: string) => console.warn(styleText('yellow', txt)),
+    error: (txt: string) => console.error(styleText('red', txt)),
     log: (txt: string) => console.log(txt),
   }
 
@@ -485,7 +489,7 @@ class ReporterImpl {
     this._logger.log(`
 To open last Flakiness report, run:
 
-  ${chalk.cyan(`npx flakiness show ${folder}`)}
+  ${styleText('cyan', `npx flakiness show ${folder}`)}
     `);
   }
 }
