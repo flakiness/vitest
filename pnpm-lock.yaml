@@ -16,8 +16,8 @@ importers:
         version: 2.5.0(@flakiness/flakiness-report@0.29.0(zod@4.3.6))
     devDependencies:
       '@flakiness/vitest':
-        specifier: 1.2.0
-        version: 1.2.0(zod@4.3.6)
+        specifier: 1.4.0
+        version: 1.4.0(zod@4.3.6)
       '@types/node':
         specifier: ^25.3.3
         version: 25.3.3
@@ -202,11 +202,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@flakiness/flakiness-report@0.27.0':
-    resolution: {integrity: sha512-01gzgoygx3ql/tjFg2vE5hAod/ZzasnxHqZOQXzXehmIpNQLu/Fe6WoUQoI/QDCBt+jZvujkY98TPC2NabWALQ==}
-    peerDependencies:
-      zod: ^4.1.12
-
   '@flakiness/flakiness-report@0.29.0':
     resolution: {integrity: sha512-yqv+rk0OVrfvnxRv2UhTkxd+j4w8jmXTQeh7g1EdiC2GqnLps8vPtnhr3k+HwBCeqrexYY8ynDcsBagqYP1a1Q==}
     peerDependencies:
@@ -218,8 +213,8 @@ packages:
     peerDependencies:
       '@flakiness/flakiness-report': '>=0.26.0 <1.0.0'
 
-  '@flakiness/vitest@1.2.0':
-    resolution: {integrity: sha512-yg2x06Czedo3E2N9G7F61PvBBlYw76e7aUWcGCbyqpNQJt0fcgfW6E8awWgFQXDJ8fmD/XfGm7kYxoCEgKVFuQ==}
+  '@flakiness/vitest@1.4.0':
+    resolution: {integrity: sha512-Kp5rWc5F5Y0ximjen446kqLxG92YPqAJ6IFrMheznIRX3SoDQ4oFgF003BtIy4cHcBS/GJT3+K93Uolk2cvDgw==}
 
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
@@ -1038,24 +1033,9 @@ snapshots:
   '@esbuild/win32-x64@0.27.3':
     optional: true
 
-  '@flakiness/flakiness-report@0.27.0(zod@4.3.6)':
-    dependencies:
-      zod: 4.3.6
-
   '@flakiness/flakiness-report@0.29.0(zod@4.3.6)':
     dependencies:
       zod: 4.3.6
-
-  '@flakiness/sdk@2.5.0(@flakiness/flakiness-report@0.27.0(zod@4.3.6))':
-    dependencies:
-      '@flakiness/flakiness-report': 0.27.0(zod@4.3.6)
-      debug: 4.4.3
-      open: 10.2.0
-      stable-hash: 0.0.6
-      which: 6.0.1
-      zod: 4.3.6
-    transitivePeerDependencies:
-      - supports-color
 
   '@flakiness/sdk@2.5.0(@flakiness/flakiness-report@0.29.0(zod@4.3.6))':
     dependencies:
@@ -1068,11 +1048,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@flakiness/vitest@1.2.0(zod@4.3.6)':
+  '@flakiness/vitest@1.4.0(zod@4.3.6)':
     dependencies:
-      '@flakiness/flakiness-report': 0.27.0(zod@4.3.6)
-      '@flakiness/sdk': 2.5.0(@flakiness/flakiness-report@0.27.0(zod@4.3.6))
-      chalk: 5.6.2
+      '@flakiness/flakiness-report': 0.29.0(zod@4.3.6)
+      '@flakiness/sdk': 2.5.0(@flakiness/flakiness-report@0.29.0(zod@4.3.6))
     transitivePeerDependencies:
       - supports-color
       - zod

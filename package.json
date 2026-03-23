@@ -17,7 +17,7 @@
   },
   "type": "module",
   "devDependencies": {
-    "@flakiness/vitest": "1.2.0",
+    "@flakiness/vitest": "1.4.0",
     "@types/node": "^25.3.3",
     "@vitest/utils": "^4.0.18",
     "esbuild": "^0.27.3",
