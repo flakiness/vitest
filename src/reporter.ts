@@ -27,6 +27,7 @@ export type FKVitestReporterOptions = {
   token?: string,
   outputFolder?: string,
   duplicates?: 'fail'|'rename',
+  title?: string,
 }
 
 export interface FKVitestLogger {
@@ -444,7 +445,9 @@ class ReporterImpl {
     }
 
     const duration = (Date.now() - this._startTimestamp) as FK.DurationMS;
+    const title = this._options.title ?? process.env.FLAKINESS_TITLE ?? CIUtils.runTitle();
     const report: FK.Report = ReportUtils.normalizeReport({
+      title,
       url: CIUtils.runUrl(),
       flakinessProject: this._options.flakinessProject,
       category: 'vitest',

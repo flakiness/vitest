@@ -43,6 +43,9 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
     fs.writeFileSync(fullPath, content);
   }
 
+  // Delete GITHUB_WORKFLOW to avoid CI auto-detection affecting title.
+  delete (process.env as any)['GITHUB_WORKFLOW'];
+
   // Initialize a git repo and commit all files.
   execSync(`git init`, { cwd: targetDir });
   execSync(`git add .`, { cwd: targetDir });
