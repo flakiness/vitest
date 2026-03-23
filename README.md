@@ -17,6 +17,7 @@ A custom Vitest reporter that generates Flakiness Reports from your Vitest test 
   - [Environment Detection](#environment-detection)
   - [CI Integration](#ci-integration)
 - [Configuration Options](#configuration-options)
+  - [`title?: string`](#title-string)
   - [`flakinessProject?: string`](#flakinessproject-string)
   - [`endpoint?: string`](#endpoint-string)
   - [`token?: string`](#token-string)
@@ -160,6 +161,16 @@ The reporter automatically detects CI environments and includes:
 
 The reporter accepts the following options:
 
+### `title?: string`
+
+Optional human-readable report title. Typically used to name a CI run, matrix shard, or other execution group. Defaults to the `FLAKINESS_TITLE` environment variable, or auto-detects from the CI environment.
+
+```typescript
+reporters: [
+  ['@flakiness/vitest', { title: 'Shard 1/4 — Linux Chrome' }]
+]
+```
+
 ### `flakinessProject?: string`
 
 The Flakiness.io project identifier in `org/project` format. Used for GitHub OIDC authentication — when set, and the Flakiness.io project is bound to the GitHub repository running the workflow, the reporter authenticates uploads via GitHub Actions OIDC token with no access token required.
@@ -235,6 +246,7 @@ reporters: [
 
 The reporter respects the following environment variables:
 
+- **`FLAKINESS_TITLE`**: Human-readable report title (equivalent to `title` option)
 - **`FLAKINESS_ACCESS_TOKEN`**: Access token for Flakiness.io uploads (equivalent to `token` option)
 - **`FLAKINESS_ENDPOINT`**: Custom Flakiness.io endpoint URL (equivalent to `endpoint` option)
 - **`FLAKINESS_OUTPUT_DIR`**: Output directory for reports (equivalent to `outputFolder` option)
@@ -253,6 +265,7 @@ export default defineConfig({
     reporters: [
       'default',
       ['@flakiness/vitest', {
+        title: 'My Test Run',
         flakinessProject: 'my-org/my-project',
         endpoint: process.env.FLAKINESS_ENDPOINT,
         token: process.env.FLAKINESS_ACCESS_TOKEN,
