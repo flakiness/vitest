@@ -445,9 +445,8 @@ class ReporterImpl {
     }
 
     const duration = (Date.now() - this._startTimestamp) as FK.DurationMS;
-    const title = this._options.title ?? process.env.FLAKINESS_TITLE ?? CIUtils.runTitle();
     const report: FK.Report = ReportUtils.normalizeReport({
-      title,
+      title: this._options.title ?? process.env.FLAKINESS_TITLE,
       url: CIUtils.runUrl(),
       flakinessProject: this._options.flakinessProject,
       category: 'vitest',
