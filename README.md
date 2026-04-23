@@ -96,6 +96,8 @@ npx flakiness show ./flakiness-report
 
 ## Features
 
+See [features.md](./features.md) for this reporter's status against the [Flakiness Report spec](https://github.com/flakiness/flakiness-report/blob/main/features.md).
+
 ### Test Location Tracking
 
 When `includeTaskLocation: true` is set in your Vitest config, the reporter records the exact file, line, and column for each test. This enables precise navigation from the Flakiness.io dashboard back to your source code.
