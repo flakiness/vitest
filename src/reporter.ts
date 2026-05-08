@@ -256,7 +256,7 @@ class ReporterImpl {
     const oppositeStatus = expectedStatus === 'failed' ? 'passed' : 'failed';
 
     // Vitest DOES NOT give us per-retry detalization, so we have
-    // to synthesize it here.
+    // to synthesize it here. See https://github.com/vitest-dev/vitest/issues/10303
     // We will do it like this:
     // - we will have X retries, all with status "failed" and duration = 0
     // - the last retry will be "passed"
@@ -271,6 +271,7 @@ class ReporterImpl {
         expectedStatus,
         // TODO: ideally, we can differentiate STDIO between attempts.
         // However, vitest doesn't let us do so easily.
+        // See https://github.com/vitest-dev/vitest/issues/10303
         // We slice these arrays just to be safe: if someone downstream from us
         // decides to push a new annotation, then they can do it per-attempt safely.
         stdio: stdio.slice(),
@@ -287,6 +288,7 @@ class ReporterImpl {
       expectedStatus,
       // TODO: ideally, we can differentiate STDIO between attempts.
       // However, vitest doesn't let us do so easily.
+      // See https://github.com/vitest-dev/vitest/issues/10303
       stdio,
       errors,
       annotations
