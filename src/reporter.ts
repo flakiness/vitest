@@ -10,6 +10,7 @@ import type { Reporter } from 'vitest/reporters';
 
 //TODO: the following types must be imported from vitest, but the types
 // are actually unavailable for imports.
+// See https://github.com/vitest-dev/vitest/issues/10305
 interface UserConsoleLog {
   content: string;
   origin?: string;
