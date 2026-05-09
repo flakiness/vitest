@@ -46,6 +46,36 @@ it('should capture unhandled errors', async (ctx) => {
   expect(err.message).toBe('Unhinged error!');
 });
 
+it('should capture soft assertion errors', async (ctx) => {
+  const { report } = await generateFlakinessReport(ctx, {
+    'file-1.test.ts': `
+      import { expect, it } from 'vitest';
+
+      it('test-1', async () => {
+        expect.soft(1).toBe(2);
+        expect.soft('foo').toBe('bar');
+      });
+    `,
+  });
+  assertCount(report.unattributedErrors, 0);
+  const [file] = assertCount(report.suites, 1);
+  const [test1] = assertCount(file.tests, 1);
+  const [attempt] = assertCount(test1.attempts, 1);
+  const [error1, error2] = assertCount(attempt.errors, 2);
+  expect(error1.message).toContain('expected 1 to be 2');
+  expect(error1.location).toEqual({
+    line: 5,
+    column: 24,
+    file: 'file-1.test.ts',
+  });
+  expect(error2.message).toContain(`expected 'foo' to be 'bar'`);
+  expect(error2.location).toEqual({
+    line: 6,
+    column: 28,
+    file: 'file-1.test.ts',
+  });
+});
+
 it('should generate report when tests have syntax errors', async (ctx) => {
   const { report } = await generateFlakinessReport(ctx, {
     'file.test.ts': `
