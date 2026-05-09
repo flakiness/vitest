@@ -185,6 +185,7 @@ class ReporterImpl {
     const fkTest: FK.Test = {
       attempts: [],
       title: testCase.name,
+      tags: testCase.tags?.length ? [...testCase.tags] : undefined,
       location: testCase.location ? {
         file: this._worktree.gitPath(testCase.module.moduleId),
         column: testCase.location.column as FK.Number1Based,

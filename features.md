@@ -18,7 +18,7 @@ Status of [Flakiness Report Features](https://github.com/flakiness/flakiness-rep
 | 11 | Step-level attachments | N/A | No steps. |
 | 12 | Timed StdIO | ⚠️ | `TimedSTDIOEntry` with `dts` deltas is populated from `onUserConsoleLog`. Text only — Vitest does not expose binary (`buffer`) stdio. Per-attempt stdio is not split (same stdio copied to every synthesized attempt). |
 | 13 | Annotations | ✅ | Emits native `testCase.annotations()` (type + description + location), plus synthesizes `skip` / `todo` (from `options.mode`), `fail` (from `options.fails`), and `dupe` (from duplicate-name handling). No `slow` / `owner` synthesis. |
-| 14 | Tags | N/A | Vitest has no native tagging mechanism. |
+| 14 | Tags | ✅ | Read from `testCase.tags` (Vitest 4.1+). Tests declare tags via `it(name, { tags: [...] }, fn)` and the reporter copies them onto `FK.Test.tags`. |
 | 15 | `parallelIndex` | ❌ | Not populated. Vitest runs tests across workers but the reporter does not thread worker identity through to attempts. [upsteam bug](https://github.com/vitest-dev/vitest/issues/10306) |
 | 16 | `FLAKINESS_TITLE` | ✅ | Honored; also settable via the `title` reporter option. |
 | 17 | `FLAKINESS_OUTPUT_DIR` | ✅ | Honored; also settable via the `outputFolder` reporter option. Defaults to `flakiness-report`. |
