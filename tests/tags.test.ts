@@ -1,9 +1,7 @@
 import { expect, it } from 'vitest';
 import { assertCount, generateFlakinessReport } from './utils';
 
-// TODO: looks like custom reporters have no access to test tags.
-// See https://github.com/vitest-dev/vitest/issues/10304
-it.todo('should capture test tags', async (ctx) => {
+it('should capture test tags', async (ctx) => {
   const { report } = await generateFlakinessReport(ctx, {
     'vitest.config.ts': `
       import { defineConfig } from 'vitest/config'
@@ -26,10 +24,7 @@ it.todo('should capture test tags', async (ctx) => {
     `,
     'smoke.test.ts': `
       import { expect, it, describe } from 'vitest';
-      /**
-       * Smoke tests
-       * @module-tag smoke
-       */
+
       it('test-2', { tags: ['smoke'] }, async () => {});
     `,
   });
