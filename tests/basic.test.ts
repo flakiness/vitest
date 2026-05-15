@@ -32,6 +32,13 @@ it('should report proper top-level properties', async (ctx) => {
   // RAM telemetry
   expect(report.ramBytes).toBeGreaterThan(0);
   expect(report.ram?.length).toBeGreaterThan(0);
+  // Producer / runtime provenance
+  expect(report.generatedBy?.name).toBe('@flakiness/vitest');
+  expect(report.generatedBy?.version).toMatch(/^\d+\.\d+\.\d+/);
+  expect(report.testRunner?.name).toBe('vitest');
+  expect(report.testRunner?.version).toMatch(/^\d+\.\d+\.\d+/);
+  expect(report.runtime?.name).toBe('node');
+  expect(report.runtime?.version).toMatch(/^\d+\.\d+\.\d+/);
   
   // A message on how to show flakiness report should be shown
   expect(log.logs.length).toBe(1);

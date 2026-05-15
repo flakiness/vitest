@@ -7,6 +7,7 @@ import path from 'node:path';
 import * as nodeUtil from 'node:util';
 import type { SerializedError, TestCase, TestModule, TestProject, TestRunEndReason, TestSuite, Vitest } from 'vitest/node';
 import type { Reporter } from 'vitest/reporters';
+import pkg from '../package.json' with { type: 'json' };
 
 //TODO: the following types must be imported from vitest, but the types
 // are actually unavailable for imports.
@@ -69,7 +70,7 @@ export default class FKVitestReporter implements Reporter {
     assert(this._vitest, 'onInit must be called before onTestRunStart');
     // Watch mode starts multiple runs; for each test run, we create a new
     // reporter.
-    this._impl = ReporterImpl.create(this._vitest.config.root, this._vitest.projects, this._options, this._logger, this._vitest.config.config);
+    this._impl = ReporterImpl.create(this._vitest.config.root, this._vitest.projects, this._options, this._logger, this._vitest.version, this._vitest.config.config);
   }
 
   async onTestRunEnd(testModules: ReadonlyArray<TestModule>, unhandledErrors: ReadonlyArray<SerializedError>, reason: TestRunEndReason) {
@@ -97,18 +98,14 @@ class ReporterImpl {
 
   private _environments: FK.Environment[] = [];
 
-  static create(rootPath: string, projects: TestProject[], options: FKVitestReporterOptions, logger: FKVitestLogger, config?: string) {
-    let commitId: FK.CommitId;
-    let worktree: GitWorktree;
-    try {
-      worktree = GitWorktree.create(rootPath);
-      commitId = worktree.headCommitId();
-      return new ReporterImpl(worktree, projects, commitId, options, logger, config);
-    } catch (e) {
-      logger.warn(`[flakiness.io] Failed to fetch commit info - is this a git repo?`);
+  static create(rootPath: string, projects: TestProject[], options: FKVitestReporterOptions, logger: FKVitestLogger, vitestVersion: string, config?: string) {
+    const result = GitWorktree.initialize(rootPath);
+    if (!result.ok) {
+      logger.warn(`[flakiness.io] Failed to fetch commit info - is this a git repo? (${result.error})`);
       logger.error(`[flakiness.io] Report is NOT generated.`);
       return;
     }
+    return new ReporterImpl(result.worktree, projects, result.commitId, options, logger, vitestVersion, config);
   }
 
   constructor(
@@ -117,6 +114,7 @@ class ReporterImpl {
     private _commitId: FK.CommitId,
     private _options: FKVitestReporterOptions,
     private _logger: FKVitestLogger,
+    private _vitestVersion: string,
     private _configPath?: string,
   ) {
     // In Vitest, all projects MUST HAVE UNIQUE NAMES.
@@ -456,6 +454,9 @@ class ReporterImpl {
       category: 'vitest',
       configPath: this._configPath ? this._worktree.gitPath(this._configPath) : undefined,
       commitId: this._commitId,
+      generatedBy: { name: pkg.name, version: pkg.version },
+      testRunner: { name: 'vitest', version: this._vitestVersion },
+      runtime: ReportUtils.detectRuntime(),
       environments: this._environments,
       startTimestamp: this._startTimestamp as FK.UnixTimestampMS,
       duration,
