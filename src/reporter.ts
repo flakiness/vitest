@@ -7,20 +7,8 @@ import path from 'node:path';
 import * as nodeUtil from 'node:util';
 import type { SerializedError, TestCase, TestModule, TestProject, TestRunEndReason, TestSuite, Vitest } from 'vitest/node';
 import type { Reporter } from 'vitest/reporters';
+import type { UserConsoleLog } from 'vitest';
 import pkg from '../package.json' with { type: 'json' };
-
-//TODO: the following types must be imported from vitest, but the types
-// are actually unavailable for imports.
-// See https://github.com/vitest-dev/vitest/issues/10305
-interface UserConsoleLog {
-  content: string;
-  origin?: string;
-  browser?: boolean;
-  type: "stdout" | "stderr";
-  taskId?: string;
-  time: number;
-  size: number;
-}
 
 export type FKVitestReporterOptions = {
   disableUpload?: boolean,
