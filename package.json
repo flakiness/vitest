@@ -1,6 +1,7 @@
 {
   "name": "@flakiness/vitest",
   "version": "1.7.0",
+  "packageManager": "pnpm@11.5.0",
   "description": "",
   "main": "lib/reporter.js",
   "scripts": {
@@ -25,7 +26,7 @@
     "@flakiness/vitest": "1.6.0",
     "@types/node": "^25.6.2",
     "@vitest/utils": "^4.1.5",
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.27.7",
     "kubik": "^0.24.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
