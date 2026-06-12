@@ -1,4 +1,6 @@
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - '@flakiness/vitest@1.8.0'
 onlyBuiltDependencies:
   - esbuild

@@ -23,7 +23,7 @@
   "devDependencies": {
     "@flakiness/flakiness-report": "^0.34.0",
     "@flakiness/sdk": "^3.2.0",
-    "@flakiness/vitest": "1.6.0",
+    "@flakiness/vitest": "1.8.0",
     "@types/node": "^25.6.2",
     "@vitest/utils": "^4.1.5",
     "esbuild": "^0.27.7",
