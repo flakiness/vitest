@@ -20,6 +20,8 @@
     "node": "^20.17.0 || >=22.9.0"
   },
   "devDependencies": {
+    "@flakiness/flakiness-report": "^0.34.0",
+    "@flakiness/sdk": "^3.2.0",
     "@flakiness/vitest": "1.6.0",
     "@types/node": "^25.6.2",
     "@vitest/utils": "^4.1.5",
@@ -28,9 +30,5 @@
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.5"
-  },
-  "dependencies": {
-    "@flakiness/flakiness-report": "^0.34.0",
-    "@flakiness/sdk": "^3.2.0"
   }
 }

@@ -117,7 +117,8 @@ class ReporterImpl {
   private _sampleSystem() {
     this._cpuUtilization.sample();
     this._ramUtilization.sample();
-    this._telemetryTimer = setTimeout(this._sampleSystem, 1000);
+    // unref() so a pending sample never keeps the host process alive.
+    this._telemetryTimer = setTimeout(this._sampleSystem, 1000).unref();
   }
 
   onUserConsoleLog(log: UserConsoleLog) {

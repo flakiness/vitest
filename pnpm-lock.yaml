@@ -7,14 +7,13 @@ settings:
 importers:
 
   .:
-    dependencies:
+    devDependencies:
       '@flakiness/flakiness-report':
         specifier: ^0.34.0
         version: 0.34.0(zod@4.4.3)
       '@flakiness/sdk':
         specifier: ^3.2.0
         version: 3.2.0(@flakiness/flakiness-report@0.34.0(zod@4.4.3))
-    devDependencies:
       '@flakiness/vitest':
         specifier: 1.6.0
         version: 1.6.0(zod@4.4.3)
