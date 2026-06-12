@@ -1,6 +1,7 @@
 {
   "name": "@flakiness/vitest",
   "version": "1.7.0",
+  "packageManager": "pnpm@11.5.0",
   "description": "",
   "main": "lib/reporter.js",
   "scripts": {
