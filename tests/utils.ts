@@ -24,7 +24,7 @@ const DEFAULT_FILES = {
   }),
 }
 
-export async function generateFlakinessReport(ctx: TestContext, files: Record<string, string>, options?: FKVitestReporterOptions) {
+export async function generateFlakinessReport(ctx: TestContext, files: Record<string, string>, fileParallelism  = false, options?: FKVitestReporterOptions) {
   const targetDir = path.join(
     ARTIFACTS_DIR,
     path.relative(__dirname, ctx.task.file.filepath),
@@ -75,7 +75,7 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
       watch: false,
       reporters: [reporter], 
       clearScreen: false,
-      fileParallelism: false,
+      fileParallelism: fileParallelism,
     },
   );
   await vitest?.close();
