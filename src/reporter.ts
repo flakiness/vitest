@@ -5,8 +5,7 @@ import crypto from 'crypto';
 import assert from 'node:assert';
 import path from 'node:path';
 import * as nodeUtil from 'node:util';
-import type { SerializedError, TestCase, TestModule, TestProject, TestRunEndReason, TestSuite, Vitest } from 'vitest/node';
-import type { Reporter } from 'vitest/reporters';
+import type { Reporter, SerializedError, TestCase, TestModule, TestProject, TestRunEndReason, TestSuite, Vitest } from 'vitest/node';
 import type { UserConsoleLog } from 'vitest';
 import pkg from '../package.json' with { type: 'json' };
 
