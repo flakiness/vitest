@@ -8,7 +8,7 @@ The entire reporter is a single source file (`src/reporter.ts`) bundled to `lib/
 
 ## Tech Stack
 
-- **Language**: TypeScript (ESM; esbuild targets Node.js 22, and package/runtime requirements are defined in `package.json`)
+- **Language**: TypeScript (ESM; esbuild targets Node.js 20, and package/runtime requirements are defined in `package.json`)
 - **Build**: [Kubik](https://github.com/flakiness/kubik) + esbuild (bundle) + tsc (declarations only)
 - **Test framework**: Vitest 4.0+
 - **Package manager**: pnpm (v11, pinned via `packageManager` in package.json)

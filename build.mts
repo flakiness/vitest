@@ -23,7 +23,7 @@ const { errors } = await esbuild.build({
   outdir: outDir,
   format: 'esm',
   platform: 'node',
-  target: ['node22'],
+  target: ['node20'],
   sourcemap: true,
   // Bundle all prod dependencies (zod in particular) so the published
   // package has zero runtime dependencies besides Vitest itself.
