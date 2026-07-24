@@ -20,6 +20,13 @@
   "engines": {
     "node": "^20.17.0 || >=22.9.0"
   },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^20.17.0",
+      "onFail": "download"
+    }
+  },
   "devDependencies": {
     "@flakiness/flakiness-report": "^0.34.0",
     "@flakiness/sdk": "^3.5.1",
