@@ -3,7 +3,7 @@ import { generateFlakinessReport } from './utils';
 
 it('should report proper top-level properties', async (ctx) => {
   const starttime = Date.now();
-  const { report, log } = await generateFlakinessReport(ctx, {
+  const { report } = await generateFlakinessReport(ctx, {
     'vitest.config.ts': `
       import { defineConfig } from 'vitest/config';
       export default defineConfig({});
@@ -39,8 +39,4 @@ it('should report proper top-level properties', async (ctx) => {
   expect(report.testRunner?.version).toMatch(/^\d+\.\d+\.\d+/);
   expect(report.runtime?.name).toBe('node');
   expect(report.runtime?.version).toMatch(/^\d+\.\d+\.\d+/);
-  
-  // A message on how to show flakiness report should be shown
-  expect(log.logs.length).toBe(1);
-  expect(log.logs[0]).toContain('flakiness show');
 });

@@ -12,8 +12,8 @@ importers:
         specifier: ^0.34.0
         version: 0.34.0(zod@4.4.3)
       '@flakiness/sdk':
-        specifier: ^3.2.0
-        version: 3.3.1(@flakiness/flakiness-report@0.34.0(zod@4.4.3))
+        specifier: ^3.5.1
+        version: 3.5.1(@flakiness/flakiness-report@0.34.0(zod@4.4.3))
       '@flakiness/vitest':
         specifier: 1.8.0
         version: 1.8.0
@@ -362,8 +362,8 @@ packages:
     peerDependencies:
       zod: ^4.1.12
 
-  '@flakiness/sdk@3.3.1':
-    resolution: {integrity: sha512-LrV+g246Oo9MSpVKU9bY/UHOYglwcqr0e4I6Vz0RGhHtOyrR2xZRCVzsM4crItDvNbIW4/9AJSRwQ5nptCykvw==}
+  '@flakiness/sdk@3.5.1':
+    resolution: {integrity: sha512-ZPeYN+QkQDiT+jKgOJ+rl5jt4BWKRB0r0pPmYE4kxdqG34cGaoaPyNYyj7DxB87duhvunePmx7UhyiRgQEKwXQ==}
     engines: {node: ^20.17.0 || >=22.9.0}
     peerDependencies:
       '@flakiness/flakiness-report': '>=0.26.0 <1.0.0'
@@ -1076,9 +1076,9 @@ packages:
     engines: {node: '>= 8'}
     hasBin: true
 
-  which@6.0.1:
-    resolution: {integrity: sha512-oGLe46MIrCRqX7ytPUf66EAYvdeMIZYn3WaocqqKZAxrBpkqHfL/qvTyJ/bTk5+AqHCjXmrv3CEWgy368zhRUg==}
-    engines: {node: ^20.17.0 || >=22.9.0}
+  which@7.0.0:
+    resolution: {integrity: sha512-RancgH2dmbLdHl6LRhEqvklWMgl/Hdnun0Y90KhBOLkMefg8Qa7/Zel8Sm+8HEcP6DEjzsWzpkuBQEZok58isA==}
+    engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
     hasBin: true
 
   why-is-node-running@2.3.0:
@@ -1287,13 +1287,13 @@ snapshots:
     dependencies:
       zod: 4.4.3
 
-  '@flakiness/sdk@3.3.1(@flakiness/flakiness-report@0.34.0(zod@4.4.3))':
+  '@flakiness/sdk@3.5.1(@flakiness/flakiness-report@0.34.0(zod@4.4.3))':
     dependencies:
       '@flakiness/flakiness-report': 0.34.0(zod@4.4.3)
       debug: 4.4.3
       open: 10.2.0
       stable-hash: 0.0.6
-      which: 6.0.1
+      which: 7.0.0
       zod: 4.4.3
     transitivePeerDependencies:
       - supports-color
@@ -1922,7 +1922,7 @@ snapshots:
     dependencies:
       isexe: 2.0.0
 
-  which@6.0.1:
+  which@7.0.0:
     dependencies:
       isexe: 4.0.0
 
