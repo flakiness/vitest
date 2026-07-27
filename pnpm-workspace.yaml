@@ -2,6 +2,7 @@ allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:
   - '@flakiness/vitest@1.8.0'
-  - '@flakiness/sdk@3.5.1'
+  - '@flakiness/sdk@3.6.0'
+  - '@flakiness/flakiness-report@0.36.0'
 onlyBuiltDependencies:
   - esbuild
