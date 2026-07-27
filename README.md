@@ -29,6 +29,7 @@ A custom Vitest reporter that generates Flakiness Reports from your Vitest test 
 
 ## Requirements
 
+- Node.js 20.17.0 or higher (22.9.0 or higher on Node 22)
 - Vitest 4.0 or higher
 - Node.js project with a git repository (for commit information)
 - Valid Flakiness.io access token (for uploads)
@@ -77,14 +78,27 @@ npx flakiness show ./flakiness-report
 
 ## Uploading Reports
 
-Reports are automatically uploaded to Flakiness.io after test completion. Authentication can be done in two ways:
+Reports are automatically uploaded to Flakiness.io after test completion. Authentication is resolved in the following order, and the first available method wins:
 
 - **Access token**: Provide a token via the `token` option or the `FLAKINESS_ACCESS_TOKEN` environment variable.
-- **GitHub OIDC**: When running in GitHub Actions, the reporter can authenticate using GitHub's OIDC token - no access token needed. This requires two conditions:
+- **GitHub OIDC**: When running in GitHub Actions with no access token, the reporter can authenticate using GitHub's OIDC token. This requires three conditions:
   1. The `flakinessProject` option must be set to your Flakiness.io project identifier (`org/project`).
   2. The Flakiness.io project must be bound to the GitHub repository that runs the GitHub Actions workflow.
+  3. The workflow must grant the `id-token: write` permission.
+- **GitLab OIDC**: When running in GitLab CI/CD with no access token, the reporter can authenticate using a GitLab ID token. GitLab mints ID tokens when the job starts, so the job must declare one named `FLAKINESS_ID_TOKEN` whose audience is your project identifier:
 
-If upload fails, the report is still available locally in the output folder.
+  ```yaml
+  test:
+    id_tokens:
+      FLAKINESS_ID_TOKEN:
+        aud: my-org/my-project   # must match the `flakinessProject` option
+    script:
+      - npx vitest run
+  ```
+
+  The `flakinessProject` option must be set, and the Flakiness.io project must be bound to the GitLab project running the pipeline.
+
+If no method is available the upload is skipped, and if an upload fails the report is still available locally in the output folder. Either way the test run is unaffected.
 
 ## Viewing Reports
 
@@ -175,7 +189,7 @@ reporters: [
 
 ### `flakinessProject?: string`
 
-The Flakiness.io project identifier in `org/project` format. Used for GitHub OIDC authentication — when set, and the Flakiness.io project is bound to the GitHub repository running the workflow, the reporter authenticates uploads via GitHub Actions OIDC token with no access token required.
+The Flakiness.io project identifier in `org/project` format. Required for CI OIDC authentication. When set, and when the Flakiness.io project is bound to the repository running the pipeline, the reporter authenticates uploads via a GitHub Actions or GitLab CI/CD OIDC token with no access token required. See [Uploading Reports](#uploading-reports) for the per-provider requirements.
 
 ```typescript
 reporters: [
@@ -199,7 +213,7 @@ reporters: [
 
 Access token for authenticating with Flakiness.io when uploading reports. Defaults to the `FLAKINESS_ACCESS_TOKEN` environment variable.
 
-If no token is provided, reporter will attempt to authenticate using Github OIDC.
+If no token is provided, the reporter falls back to CI OIDC on GitHub Actions and GitLab CI/CD. If that is unavailable too, the report is still generated locally but won't be uploaded automatically.
 
 ```typescript
 reporters: [
@@ -253,6 +267,7 @@ The reporter respects the following environment variables:
 - **`FLAKINESS_ENDPOINT`**: Custom Flakiness.io endpoint URL (equivalent to `endpoint` option)
 - **`FLAKINESS_OUTPUT_DIR`**: Output directory for reports (equivalent to `outputFolder` option)
 - **`FLAKINESS_DISABLE_UPLOAD`**: When set, disables report uploads (equivalent to `disableUpload` option)
+- **`FLAKINESS_ID_TOKEN`**: GitLab CI/CD ID token used for OIDC authentication. Set by GitLab for jobs that declare it under `id_tokens:` (see [Uploading Reports](#uploading-reports))
 
 ## Example Configuration
 
