@@ -8,6 +8,11 @@ it('should capture test annotations', async (ctx) => {
 
       it('test-1', async ({ annotate }) => {
         await annotate('https://github.com/vitest-dev/vitest/pull/7953', 'issues');
+        await annotate('debug log', {
+          body: 'annotation text',
+          bodyEncoding: 'utf-8',
+          contentType: 'text/plain',
+        });
       });
     `,
   });
@@ -18,5 +23,13 @@ it('should capture test annotations', async (ctx) => {
     type: 'issues',
     description: 'https://github.com/vitest-dev/vitest/pull/7953',
     location: { file: 'file-1.test.ts', line: 5, column: 15 }
+  }, {
+    type: 'notice',
+    description: 'debug log',
+    location: { file: 'file-1.test.ts', line: 6, column: 15 }
   }]);
+  // An annotation with an attachment still produces the annotation itself, but
+  // its attachment is deliberately not collected: vitest 4 does not report
+  // annotations as artifacts, and the API sees no real-world use.
+  expect(attempt1.attachments ?? []).toEqual([]);
 });

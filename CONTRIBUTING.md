@@ -2,8 +2,7 @@
 
 ## Prerequisites
 
-- Node.js 22+
-- [pnpm](https://pnpm.io/)
+- [pnpm](https://pnpm.io/) 11; pnpm installs the repository's Node.js runtime from `devEngines`
 
 ## Getting Started
 
@@ -13,6 +12,7 @@ Clone the repo and install dependencies:
 git clone https://github.com/flakiness/vitest.git fk-vitest
 cd fk-vitest
 pnpm install
+pnpm exec playwright install chromium
 ```
 
 ## Building

@@ -1,13 +1,13 @@
-import { FlakinessReport as FK } from '@flakiness/flakiness-report';
+import { FlakinessReport as FK, FlakinessReport } from '@flakiness/flakiness-report';
 import { CIUtils, CPUUtilization, GitWorktree, RAMUtilization, ReportUtils, showReportMessage, uploadReport, writeReport } from '@flakiness/sdk';
 import type { ParsedStack } from '@vitest/utils';
 import crypto from 'crypto';
 import assert from 'node:assert';
 import path from 'node:path';
 import * as nodeUtil from 'node:util';
+import type { TestAttachment, UserConsoleLog } from 'vitest';
 import type { SerializedError, TestCase, TestModule, TestProject, TestRunEndReason, TestSuite, Vitest } from 'vitest/node';
 import type { Reporter } from 'vitest/reporters';
-import type { UserConsoleLog } from 'vitest';
 import pkg from '../package.json' with { type: 'json' };
 
 export type FKVitestReporterOptions = {
@@ -81,6 +81,7 @@ class ReporterImpl {
   private _ramUtilization = new RAMUtilization({ precision: 10 });
 
   private _startTimestamp: number = Date.now();
+  private _attachments = new Map<FK.AttachmentId, ReportUtils.Attachment>();
 
   private _stdio = new Map<string, UserConsoleLog[]>();
 
@@ -147,7 +148,7 @@ class ReporterImpl {
     } : undefined;
   }
 
-  private _collectSuite(fkParent: FK.Suite, suite: TestSuite) {
+  private async _collectSuite(fkParent: FK.Suite, suite: TestSuite) {
     const fkSuite: FK.Suite = {
       type: 'suite',
       title: suite.name,
@@ -161,9 +162,60 @@ class ReporterImpl {
     fkParent.suites.push(fkSuite);
 
     for (const s of suite.children.suites())
-      this._collectSuite(fkSuite, s);
+      await this._collectSuite(fkSuite, s);
     for (const t of suite.children.tests())
-      this._collectTest(fkSuite, t);
+      await this._collectTest(fkSuite, t);
+  }
+
+  private async _collectAttachments(testCase: TestCase): Promise<FlakinessReport.Attachment[]> {
+    const attachments: FlakinessReport.Attachment[] = [];
+
+    // Stores the attachment's content and reports it under `name`, with the
+    // extension of the file it came from.
+    const add = async (attachment: TestAttachment, name: string) => {
+      const fkAttachment = await createFKAttachment(attachment);
+      this._attachments.set(fkAttachment.id, fkAttachment);
+      attachments.push({
+        contentType: fkAttachment.contentType,
+        id: fkAttachment.id,
+        name: name + extension(attachment),
+      });
+    };
+
+    let visualRegressionIndex = 0;
+    let failureScreenshotIndex = 0;
+    for (const artifact of testCase.artifacts?.() ?? []) {
+      // We will collect annotations separately:
+      // - in vitest 5, annotation attachments are reported as artifacts
+      // - in vitest 4, they are NOT reported here.
+      if (artifact.type === 'internal:annotation')
+        continue;
+      if (artifact.type === 'internal:toMatchScreenshot') {
+        // A test may compare multiple screenshots, so every comparison gets its
+        // own prefix: screenshot-1-expected.png, screenshot-2-actual.png, ...
+        const prefix = `screenshot-${++visualRegressionIndex}`;
+        for (const attachment of artifact.attachments)
+          await add(attachment, `${prefix}-${VISUAL_REGRESSION_NAMES[attachment.name]}`);
+      } else if (artifact.type === 'internal:failureScreenshot') {
+        // Browser Mode screenshots every failing test when
+        // `browser.screenshotFailures` is on - the default outside of the UI.
+        // Vitest never clears artifacts between retries, so a test that failed
+        // more than once brings along one screenshot per failed attempt.
+        for (const attachment of artifact.attachments) {
+          ++failureScreenshotIndex;
+          await add(attachment, failureScreenshotIndex === 1 ? 'failure-screenshot' : `failure-screenshot-${failureScreenshotIndex}`);
+        }
+      } else {
+        // Custom artifacts have no names to offer, so their attachments are
+        // numbered after the artifact type. TypeScript narrows this branch to
+        // `never`: `TestArtifactRegistry` is empty here, and only the project
+        // running the tests augments it. Hence the restated shape.
+        const custom = artifact as { type: string, attachments?: TestAttachment[] };
+        for (const [index, attachment] of (custom.attachments ?? []).entries())
+          await add(attachment, `${custom.type}-${index + 1}`);
+      }
+    }
+    return attachments;
   }
 
   async _collectTest(fkParent: FK.Suite, testCase: TestCase) {
@@ -241,6 +293,8 @@ class ReporterImpl {
     if (testCase.options.fails)
       annotations.push({ type: 'fail' });
 
+    const attachments: FK.Attachment[] = await this._collectAttachments(testCase);
+
     const expectedStatus = testCase.options.fails ? 'failed' : 'passed';
     const oppositeStatus = expectedStatus === 'failed' ? 'passed' : 'failed';
 
@@ -266,6 +320,7 @@ class ReporterImpl {
         stdio: stdio.slice(),
         errors: errors.slice(),
         annotations: annotations.slice(),
+        attachments: attachments.slice(),
       });
     }
 
@@ -280,7 +335,8 @@ class ReporterImpl {
       // See https://github.com/vitest-dev/vitest/issues/10303
       stdio,
       errors,
-      annotations
+      annotations,
+      attachments,
     });
   }
 
@@ -404,7 +460,7 @@ class ReporterImpl {
   }
 
   async onTestRunEnd(testModules: ReadonlyArray<TestModule>, unhandledErrors: ReadonlyArray<SerializedError>, reason: TestRunEndReason) {
-    const fileSuites = testModules.map(file => {
+    const fileSuites = await Promise.all(testModules.map(async file => {
       const fkFileSuite: FK.Suite = {
         type: 'file',
         title: file.relativeModuleId,
@@ -415,11 +471,11 @@ class ReporterImpl {
         },
       };
       for (const suite of file.children.suites())
-        this._collectSuite(fkFileSuite, suite);
+        await this._collectSuite(fkFileSuite, suite);
       for (const test of file.children.tests())
-        this._collectTest(fkFileSuite, test);
+        await this._collectTest(fkFileSuite, test);
       return fkFileSuite;
-    });
+    }));
 
     clearTimeout(this._telemetryTimer);
     this._cpuUtilization.sample();
@@ -467,11 +523,11 @@ class ReporterImpl {
       process.cwd(),
       process.env.FLAKINESS_OUTPUT_DIR ?? 'flakiness-report',
     );
-    await writeReport(report, [], outputFolder);
+    const attachments = await writeReport(report, Array.from(this._attachments.values()), outputFolder);
 
     const disableUpload = !!this._options.disableUpload || !!process.env.FLAKINESS_DISABLE_UPLOAD;
     if (!disableUpload) {
-      await uploadReport(report, [], {
+      await uploadReport(report, attachments, {
         flakinessAccessToken: this._options.token,
         flakinessEndpoint: this._options.endpoint,
         logger: this._logger,
@@ -484,4 +540,30 @@ class ReporterImpl {
 
 function dupeSuffix(dupeIndex: number): string {
   return ` – dupe #${dupeIndex}`;
+}
+
+async function createFKAttachment(attachment: TestAttachment): Promise<ReportUtils.Attachment> {
+  const contentType = attachment.contentType ?? 'application/octet-stream';
+  if (attachment.path)
+    return await ReportUtils.createFileAttachment(contentType, attachment.path);
+
+  // Vitest base64-encodes binary bodies when the attachment is recorded, so
+  // in practice bodies always reach us as strings.
+  if (typeof attachment.body === 'string')
+    return ReportUtils.createDataAttachment(contentType, Buffer.from(attachment.body, attachment.bodyEncoding === 'utf-8' ? 'utf8' : 'base64'));
+  if (attachment.body)
+    return ReportUtils.createDataAttachment(contentType, Buffer.from(attachment.body));
+  throw new Error(`Failed to parse attachment: it has neither path to body. This is likely a bug; please report to https://github.com/flakiness/vitest/issues/new`);
+}
+
+// The names that visual regression attachments get in the report. Flakiness
+// reports call the committed screenshot "expected", vitest calls it "reference".
+const VISUAL_REGRESSION_NAMES = {
+  reference: 'expected',
+  actual: 'actual',
+  diff: 'diff',
+} as const;
+
+function extension(attachment: TestAttachment): string {
+  return attachment.path ? path.extname(attachment.path) : '';
 }

@@ -13,6 +13,7 @@ A custom Vitest reporter that generates Flakiness Reports from your Vitest test 
 - [Viewing Reports](#viewing-reports)
 - [Features](#features)
   - [Test Location Tracking](#test-location-tracking)
+  - [Attachments](#attachments)
   - [Handling Test Duplicates](#handling-test-duplicates)
   - [Environment Detection](#environment-detection)
   - [CI Integration](#ci-integration)
@@ -115,6 +116,17 @@ See [features.md](./features.md) for this reporter's status against the [Flakine
 ### Test Location Tracking
 
 When `includeTaskLocation: true` is set in your Vitest config, the reporter records the exact file, line, and column for each test. This enables precise navigation from the Flakiness.io dashboard back to your source code.
+
+### Attachments
+
+[Browser Mode](https://vitest.dev/guide/browser/) records screenshots as Vitest artifacts. The reporter writes them into the local Flakiness report and uploads them along with it. Identical content is stored only once, no matter how many tests attach it.
+
+Two kinds of screenshot are captured:
+
+- **Failure screenshots.** Vitest screenshots every failing test when [`browser.screenshotFailures`](https://vitest.dev/config/browser/screenshotfailures) is enabled — which is the default outside of the Vitest UI. It is reported as `failure-screenshot.png`, and needs no changes to your tests.
+- **Visual regressions.** Each failed `toMatchScreenshot()` comparison contributes `screenshot-1-expected.png`, `screenshot-1-actual.png` and `screenshot-1-diff.png`, numbered per comparison within the test. Vitest does not take a failure screenshot for these, since the comparison images already show the page.
+
+Attachments of custom artifacts recorded through Vitest's `recordArtifact()` are named after the artifact type (`my-plugin:artifact-1`). Attachments of test annotations (`context.annotate()`) are not collected.
 
 ### Handling Test Duplicates
 

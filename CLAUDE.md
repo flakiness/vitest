@@ -47,8 +47,12 @@ CONTRIBUTING.md       # Build & release instructions
 - The public export is `FKVitestReporter` (default export from `src/reporter.ts`), which implements Vitest's `Reporter` interface.
 - Internally, `FKVitestReporter` delegates to a `ReporterImpl` created per test run (supports watch mode re-runs).
 - `ReporterImpl` walks Vitest's `TestModule` / `TestSuite` / `TestCase` tree and builds the FK report tree (`FK.Suite` / `FK.Test` with attempts).
-- Duplicate test name detection is a key concern — Vitest allows duplicate names, but flakiness.io requires unique full names. Controlled via `duplicates` option (`'fail'` default, or `'rename'`).
-- Vitest does not provide per-retry detail, so retries are synthesized: N-1 zero-duration failed attempts + 1 final attempt (errors/stdio/annotations duplicated across them). See https://github.com/vitest-dev/vitest/issues/10303
+- Duplicate test name detection is a key concern — Vitest allows duplicate names, but flakiness.io requires unique full names. Controlled via `duplicates` option (`'fail'` default, or `'rename'`); implemented by the `detectDuplicates` / `warnDuplicates` / `failDuplicates` / `renameDuplicates` functions.
+- Attachments come from `testCase.artifacts()` and are collected by `_collectAttachments()`, which names each one and stores the bytes in `_attachments` (keyed by content id, so identical content is stored once) until `writeReport()`. Scope is deliberately **Browser Mode screenshots** — `internal:failureScreenshot` (`failure-screenshot.png`) and `internal:toMatchScreenshot` (`screenshot-N-expected/actual/diff.png`) — because they are the only attachments Vitest produces on its own; other artifact types fall through to a generic `<type>-<index>` name. `internal:annotation` artifacts are skipped: Vitest 4 reports annotations via `testCase.annotations()` instead, and `annotation.attachment` is intentionally not collected (no real-world usage). Vitest plans to report annotations as artifacts in its next major, so the skip must stay.
+- Attachment naming cannot use `attachment.path`: Vitest copies attached files into its `attachmentsDir` under a hash of the source path. Artifacts that care keep the real path in `originalPath`.
+- Vitest never clears `task.artifacts` between retries, so a test that failed several times carries one failure screenshot per failed attempt (named `failure-screenshot.png`, `failure-screenshot-2.png`, ...).
+- Collecting attachments is IO-bound, so `_collectSuite` / `_collectTest` are async and the whole tree walk is awaited in `onTestRunEnd()` — before duplicate handling, which rewrites attempts.
+- Vitest does not provide per-retry detail, so retries are synthesized: N-1 zero-duration failed attempts + 1 final attempt (errors/stdio/annotations/attachments duplicated across them). See https://github.com/vitest-dev/vitest/issues/10303
 - Behavior is configurable via reporter options (`title`, `flakinessProject`, `endpoint`, `token`, `outputFolder`, `duplicates`, `disableUpload`) and matching `FLAKINESS_*` env vars; `FK_ENV_*` vars become environment metadata. All documented in README.md.
 - Dogfooding gotcha: `vitest.config.ts` uses `@flakiness/vitest` from npm (pinned devDependency, currently one version behind), **not** the local `src/`. Local changes don't affect the project's own report until published.
 
@@ -60,14 +64,19 @@ When changing reporter behavior, keep these in sync:
 
 ## Testing
 
-Tests are **integration tests** — each test calls `generateFlakinessReport()` which:
+Tests are **integration tests** — each test calls `generateFlakinessReport(ctx, files, reporterOptions?)` which:
 1. Creates a temp directory with test files
 2. Initializes a git repo in it (reporter requires git)
-3. Starts a real Vitest instance with `startVitest()`
-4. Runs the reporter against it with uploads disabled
-5. Reads back and asserts on the generated report JSON
+3. Links this repo's `node_modules` into the temp project, so its files and config can import anything from here (e.g. a Browser Mode config importing `@vitest/browser-playwright`)
+4. Starts a real Vitest instance with `startVitest()`
+5. Runs the reporter against it with uploads disabled
+6. Reads back and asserts on the generated report JSON
+
+Tests configure the temp project by writing their own `vitest.config.ts` into `files` — there is no separate config parameter. Because the linked `node_modules` points back here, the harness overrides Vite's `cacheDir` to `<temp project>/.vite-cache` so concurrent runs don't share (and pollute) this repo's `node_modules/.vite`.
 
 Tests use `/tmp/flakiness-vitest` (or `/private/tmp/flakiness-vitest` on macOS) for artifacts. The `global-setup.ts` wipes this directory before each full test run.
+
+`attachments-browser.test.ts` covers attachments end to end. It is browser-only by design: Browser Mode is the only thing in Vitest that produces attachments without the test asking for them. Requires `pnpm exec playwright install chromium`.
 
 Test timeout is 30 seconds (`vitest.config.ts`).
 

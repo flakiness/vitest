@@ -1,5 +1,5 @@
 import { FlakinessReport } from '@flakiness/flakiness-report';
-import { readReport } from '@flakiness/sdk';
+import { readReport, ReportUtils } from '@flakiness/sdk';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -50,11 +50,24 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
     cwd: targetDir
   });
 
+  // Temporary projects have no dependencies of their own, so anything they
+  // import - `@vitest/browser-playwright` in a Browser Mode config, say - is
+  // resolved through this link. Note that it is created *after* the commit
+  // above, so it never ends up in the temporary git repo, and that recursive
+  // deletes never follow it (see the cleanup at the top of this function).
+  //
+  // The whole tree is linked rather than individual packages because pnpm keeps
+  // the real packages in `node_modules/.pnpm` and symlinks to them from there.
+  fs.symlinkSync(
+    path.join(__dirname, '..', 'node_modules'),
+    path.join(targetDir, 'node_modules'),
+    process.platform === 'win32' ? 'junction' : 'dir',
+  );
+
   const reporter = new FKVitestReporter({
     ...(options ?? {}),
     outputFolder: reportDir,
     disableUpload: true,
-    open: 'never',
   });
   const log: { warns: string[], errors: string[], logs: string[] } = {
     warns: [],
@@ -76,6 +89,13 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
       reporters: [reporter], 
       clearScreen: false,
       fileParallelism: false,
+    },
+    {
+      // Vite caches optimized dependencies in `<root>/node_modules/.vite`,
+      // which the link above redirects into this repository. Keep the cache
+      // inside the temporary project instead: concurrent test runs would
+      // otherwise fight over one shared cache directory.
+      cacheDir: path.join(targetDir, '.vite-cache'),
     },
   );
   await vitest?.close();
@@ -104,4 +124,29 @@ export function assertStatus(status: FlakinessReport.TestStatus|undefined, expec
 export function assertCount<T>(elements: T[]|undefined, count: number): T[] {
   expect(elements?.length).toBe(count);
   return elements!;
+}
+
+/**
+ * Names of the attempt's attachments, in report order. Handy to assert the
+ * whole set at once: `expect(attachmentNames(attempt)).toEqual([...])`.
+ */
+export function attachmentNames(attempt: FlakinessReport.RunAttempt): string[] {
+  return (attempt.attachments ?? []).map(attachment => attachment.name);
+}
+
+export function assertAttachment(attempt: FlakinessReport.RunAttempt, name: string, contentType: string): FlakinessReport.Attachment {
+  const found = attempt.attachments?.find(attachment => attachment.name === name);
+  expect(found, `attachment "${name}" should be reported`).toBeDefined();
+  expect(found!.contentType).toBe(contentType);
+  return found!;
+}
+
+/**
+ * Reads the content of an attachment that was written next to the report.
+ * `attachments` is the list returned by `generateFlakinessReport()`.
+ */
+export async function readAttachment(attachments: ReportUtils.FileAttachment[], attachment: FlakinessReport.Attachment): Promise<Buffer> {
+  const found = attachments.find(stored => stored.id === attachment.id);
+  expect(found, `attachment "${attachment.name}" should be written next to the report`).toBeDefined();
+  return await fs.promises.readFile(found!.path);
 }

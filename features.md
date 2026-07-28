@@ -10,11 +10,11 @@ Status of [Flakiness Report Features](https://github.com/flakiness/flakiness-rep
 | 3 | Multiple environments | ✅ | One `environments[]` entry per Vitest project (project names must be unique in Vitest). |
 | 4 | Custom environments (`FK_ENV_*`) | ✅ | Supports configuring custom environment properties via `FK_ENV_*` env variables. |
 | 5 | Test hierarchy / suites | ✅ | Emits `file` and `suite` nodes with correct nesting. Vitest has no notion of anonymous suites, so that case doesn't apply. |
-| 6 | Per-attempt reporting (retries) | ⚠️ | Vitest does not expose per-retry details. The reporter synthesizes `retryCount - 1` zero-duration failed attempts followed by the real final attempt. Errors, stdio, and annotations are duplicated across synthesized attempts. |
+| 6 | Per-attempt reporting (retries) | ⚠️ | Vitest does not expose per-retry details. The reporter synthesizes `retryCount - 1` zero-duration failed attempts followed by the real final attempt. Errors, stdio, annotations, and attachments are duplicated across synthesized attempts. |
 | 7 | Per-attempt timeout | ❌ | `RunAttempt.timeout` is not populated, even though Vitest exposes an effective `timeout` on the task. |
 | 8 | Test steps | N/A | Vitest has no native step concept. |
 | 9 | Expected status (`expectedStatus`) | ✅ | `test.fails()` / `options.fails` maps to `expectedStatus: 'failed'`; skipped/todo tests map to `expectedStatus: 'skipped'`. |
-| 10 | Attachments | ❌ | Not implemented. Vitest 4 exposes `TestAttachment` on annotations and `TestArtifact`, but the reporter ignores them. |
+| 10 | Attachments | ⚠️ | Captures Browser Mode screenshots from `TestArtifact`: failure screenshots (`browser.screenshotFailures`) and visual-regression reference/actual/diff images (`toMatchScreenshot()`). Attachments of custom artifacts are captured under a generic name. Identical content is stored once. Attachments of `context.annotate()` annotations are not captured — Vitest 4 does not report them as artifacts. |
 | 11 | Step-level attachments | N/A | No steps. |
 | 12 | Timed StdIO | ⚠️ | `TimedSTDIOEntry` with `dts` deltas is populated from `onUserConsoleLog`. Text only — Vitest does not expose binary (`buffer`) stdio. Per-attempt stdio is not split (same stdio copied to every synthesized attempt). |
 | 13 | Annotations | ✅ | Emits native `testCase.annotations()` (type + description + location), plus synthesizes `skip` / `todo` (from `options.mode`), `fail` (from `options.fails`), and `dupe` (from duplicate-name handling). No `slow` / `owner` synthesis. |
