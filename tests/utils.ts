@@ -86,9 +86,16 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
       root: targetDir,
       config: path.join(targetDir, 'vitest.config.ts'),
       watch: false,
-      reporters: [reporter], 
+      reporters: [reporter],
       clearScreen: false,
       fileParallelism: false,
+      // Vitest resolves `updateSnapshot` to 'none' when it detects CI, and the
+      // temporary project inherits our own CI environment. Under 'none' a
+      // missing reference screenshot is never created - it is written to the
+      // diffs directory instead - so `toMatchScreenshot()` reports a missing
+      // reference forever and never a real comparison. Pin the value so these
+      // runs behave the same on a laptop and on CI.
+      update: 'new',
     },
     {
       // Vite caches optimized dependencies in `<root>/node_modules/.vite`,
