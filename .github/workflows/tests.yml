@@ -30,6 +30,7 @@ jobs:
       # to configure git to avoid warnings.
       - run: git config --global init.defaultBranch main
       - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps --only-shell chromium
       - run: pnpm build
       - run: pnpm test:run
       - name: Upload Flakiness report artifact (fork PRs only)
