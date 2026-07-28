@@ -5,8 +5,7 @@ import crypto from 'crypto';
 import assert from 'node:assert';
 import path from 'node:path';
 import * as nodeUtil from 'node:util';
-import type { SerializedError, TestCase, TestModule, TestProject, TestRunEndReason, TestSuite, Vitest } from 'vitest/node';
-import type { Reporter } from 'vitest/reporters';
+import type { Reporter, SerializedError, TestCase, TestModule, TestProject, TestRunEndReason, TestSuite, Vitest } from 'vitest/node';
 import type { UserConsoleLog } from 'vitest';
 import pkg from '../package.json' with { type: 'json' };
 
@@ -209,6 +208,8 @@ class ReporterImpl {
     const startTime = testCase.diagnostic()?.startTime ?? this._startTimestamp;
     const duration = testCase.diagnostic()?.duration ?? testCase.module.diagnostic()?.duration ?? 0;
     const retryCount = testCase.diagnostic()?.retryCount ?? 0;
+    // concurrencyId is exposed on ModuleDiagnostic since Vitest 5.0.0; undefined on older versions.
+    const parallelIndex: number | undefined = (testCase.module.diagnostic() as any)?.concurrencyId;
 
     const stdio: FK.TimedSTDIOEntry[] = [];
     let ts = startTime;
@@ -252,6 +253,7 @@ class ReporterImpl {
     for (let i = 0; i < retryCount; ++i) {
       fkTest.attempts.push({
         environmentIdx,
+        parallelIndex,
         startTimestamp: startTime as FK.UnixTimestampMS,
         duration: 0 as FK.DurationMS,
         // retries have an opposite status from expected status to
@@ -271,6 +273,7 @@ class ReporterImpl {
 
     fkTest.attempts.push({
       environmentIdx,
+      parallelIndex,
       startTimestamp: startTime as FK.UnixTimestampMS,
       duration: duration as FK.DurationMS,
       status: result.state === 'failed' ? oppositeStatus : expectedStatus,
