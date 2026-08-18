@@ -273,7 +273,9 @@ class ReporterImpl {
         // never serialize an invalid negative DurationMS.
         dts: Math.max(0, entry.time - ts) as FK.DurationMS,
       });
-      ts = entry.time;
+      // A clamped stale entry must not move the baseline backwards, or the
+      // next valid delta would count already-accounted-for time again.
+      ts = Math.max(ts, entry.time);
     }
     this._stdio.delete(testCase.id);
 
