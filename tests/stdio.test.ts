@@ -11,6 +11,8 @@ it('should capture stdio', async (ctx) => {
         await new Promise(x => setTimeout(x, 50));
         console.log('foo');
         await new Promise(x => setTimeout(x, 100));
+        console.log('baz');
+        await new Promise(x => setTimeout(x, 100));
         console.error('bar');
       });
     `,
@@ -18,15 +20,19 @@ it('should capture stdio', async (ctx) => {
   const [file] = assertCount(report.suites, 1);
   const [test1] = assertCount(file.tests, 1);
   const [attempt] = assertCount(test1.attempts, 1);
-  expect(attempt.stdio?.length).toBe(2);
-  const [stdout, stderr] = assertCount(attempt.stdio, 2);
-  expect((stdout as any).text).toBe('foo\n');
-  expect(stdout.stream ?? FlakinessReport.STREAM_STDOUT).toBe(FlakinessReport.STREAM_STDOUT);
+  expect(attempt.stdio?.length).toBe(3);
+  const [firstStdout, secondStdout, stderr] = assertCount(attempt.stdio, 3);
+  expect((firstStdout as any).text).toBe('foo\n');
+  expect(firstStdout.stream ?? FlakinessReport.STREAM_STDOUT).toBe(FlakinessReport.STREAM_STDOUT);
 
+  expect((secondStdout as any).text).toBe('baz\n');
+  expect(secondStdout.stream ?? FlakinessReport.STREAM_STDOUT).toBe(FlakinessReport.STREAM_STDOUT);
   expect((stderr as any).text).toBe('bar\n');
   expect(stderr.stream ?? FlakinessReport.STREAM_STDOUT).toBe(FlakinessReport.STREAM_STDERR);
-  //TODO: vitest bug: the first stderr entry has the same time
-  // as the previous stdout.
-  // See https://github.com/vitest-dev/vitest/issues/10307
-  // expect(stderr.dts).toBeGreaterThan(0);
+
+  // Vitest versions before vitest-dev/vitest#10308 can emit the stale first
+  // stdout timestamp for stderr here, after the newer second stdout event.
+  // TimedSTDIOEntry.dts is a DurationMS, so it must never be negative.
+  for (const entry of [firstStdout, secondStdout, stderr])
+    expect(entry.dts).toBeGreaterThanOrEqual(0);
 });

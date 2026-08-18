@@ -268,7 +268,10 @@ class ReporterImpl {
       stdio.push({
         text: entry.content,
         stream: entry.type === 'stdout' ? FK.STREAM_STDOUT : FK.STREAM_STDERR,
-        dts: (entry.time - ts) as FK.DurationMS,
+        // Older Vitest versions can report a stale timestamp when output
+        // switches between stdout and stderr. Preserve the emitted order, but
+        // never serialize an invalid negative DurationMS.
+        dts: Math.max(0, entry.time - ts) as FK.DurationMS,
       });
       ts = entry.time;
     }
