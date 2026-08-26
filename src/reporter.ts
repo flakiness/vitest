@@ -260,7 +260,9 @@ class ReporterImpl {
     // best we have.
     const startTime = testCase.diagnostic()?.startTime ?? this._startTimestamp;
     const duration = testCase.diagnostic()?.duration ?? testCase.module.diagnostic()?.duration ?? 0;
-    const retryCount = testCase.diagnostic()?.retryCount ?? 0;
+    // Workaround for https://github.com/vitest-dev/vitest/issues/11068: consider
+    // `fails` tests to have no retry count, otherwise, they look like "flaky" tests.
+    const retryCount = testCase.options.fails ? 0 : (testCase.diagnostic()?.retryCount ?? 0);
 
     const stdio: FK.TimedSTDIOEntry[] = [];
     let ts = startTime;

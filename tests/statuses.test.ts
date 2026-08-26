@@ -58,6 +58,7 @@ it('should support test.skip', async (ctx) => {
   const [attempt] = assertCount(skipped.attempts, 1);
   assertStatus(attempt.status, 'skipped');
   assertStatus(attempt.expectedStatus, 'skipped');
+  expect(attempt.annotations).toEqual([{ type: 'skip' }]);
   expect(attempt.startTimestamp ?? 0).toBeGreaterThan(0);
 });
 
@@ -79,7 +80,28 @@ it('should support test.fails', async (ctx) => {
   const [attempt] = assertCount(fails.attempts, 1);
   assertStatus(attempt.status, 'failed');
   assertStatus(attempt.expectedStatus, 'failed');
+  expect(attempt.annotations).toEqual([{ type: 'fail' }]);
   expect(attempt.startTimestamp ?? 0).toBeGreaterThan(0);
+});
+
+// Workaround for https://github.com/vitest-dev/vitest/issues/11068
+it('should not report retries for test.fails', async (ctx) => {
+  const { report } = await generateFlakinessReport(ctx, {
+    'file.test.ts': `
+      import { expect, it } from 'vitest';
+
+      it.fails('should fail', { retry: 2 }, async (ctx) => {
+        expect(1 + 1).toBe(3);
+      });
+    `
+  });
+  const [suite] = assertCount(report.suites, 1);
+  const [fails] = assertCount(suite.tests, 1);
+
+  expect(fails.title).toBe('should fail');
+  const [attempt] = assertCount(fails.attempts, 1);
+  assertStatus(attempt.status, 'failed');
+  assertStatus(attempt.expectedStatus, 'failed');
 });
 
 it('should support test.todo', async (ctx) => {
@@ -100,4 +122,5 @@ it('should support test.todo', async (ctx) => {
   const [attempt] = assertCount(todo.attempts, 1);
   assertStatus(attempt.status, 'skipped');
   assertStatus(attempt.expectedStatus, 'skipped');
+  expect(attempt.annotations).toEqual([{ type: 'todo' }]);
 });
