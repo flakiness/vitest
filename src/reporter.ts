@@ -6,8 +6,7 @@ import assert from 'node:assert';
 import path from 'node:path';
 import * as nodeUtil from 'node:util';
 import type { TestAttachment, UserConsoleLog } from 'vitest';
-import type { SerializedError, TestCase, TestModule, TestProject, TestRunEndReason, TestSuite, Vitest } from 'vitest/node';
-import type { Reporter } from 'vitest/reporters';
+import type { Reporter, SerializedError, TestCase, TestModule, TestProject, TestRunEndReason, TestSuite, Vitest } from 'vitest/node';
 import pkg from '../package.json' with { type: 'json' };
 
 export type FKVitestReporterOptions = {

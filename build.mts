@@ -1,4 +1,4 @@
-#!/usr/bin/env -S npx kubik
+#!/usr/bin/env -S pnpm build
 
 import esbuild from 'esbuild';
 import fs from 'fs';
@@ -28,7 +28,7 @@ const { errors } = await esbuild.build({
   // Bundle all prod dependencies (zod in particular) so the published
   // package has zero runtime dependencies besides Vitest itself.
   bundle: true,
-  external: ['vitest', 'vitest/node', 'vitest/reporters', '@vitest/utils'],
+  external: ['vitest', 'vitest/node', '@vitest/utils'],
   banner: {
     // Bundled CJS dependencies require() node builtins at runtime.
     js: `import { createRequire as __createRequire } from 'node:module'; const require = __createRequire(import.meta.url);`,

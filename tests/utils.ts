@@ -20,7 +20,10 @@ const DEFAULT_FILES = {
   `,
   'package.json': JSON.stringify({
     'name': 'my-package',
-    'version': '1.0.0'
+    'version': '1.0.0',
+    // Configs and tests are ES modules. Vite 8 warns about ES module syntax in
+    // files that `package.json` leaves to be loaded as CommonJS.
+    'type': 'module',
   }),
 }
 
@@ -102,7 +105,12 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
       // which the link above redirects into this repository. Keep the cache
       // inside the temporary project instead: concurrent test runs would
       // otherwise fight over one shared cache directory.
-      cacheDir: path.join(targetDir, '.vite-cache'),
+      //
+      // The path keeps a `node_modules` segment, like Vite's default: Vite
+      // treats code under `node_modules` as third-party, and outside of it
+      // warns about the dynamic imports in dependencies that Browser Mode
+      // pre-bundles (such as `vite/module-runner` in Vitest 5).
+      cacheDir: path.join(targetDir, '.cache', 'node_modules', '.vite'),
     },
   );
   await vitest?.close();

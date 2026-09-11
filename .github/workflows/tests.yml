@@ -16,7 +16,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        vitest: ['4', '5']
     runs-on: ${{ matrix.os }}
+    env:
+      # Gives each Vitest version its own test history on flakiness.io.
+      FK_ENV_VITEST: ${{ matrix.vitest }}
     steps:
       - uses: actions/checkout@v6
 
@@ -25,6 +29,15 @@ jobs:
         with:
           standalone: true
           cache: true
+
+      # package.json develops against Vitest 4 on Node 20, the oldest pairing
+      # the reporter supports. Vitest 5 requires Node 22.12+, so switch both.
+      - name: Switch to Vitest 5
+        if: matrix.vitest == '5'
+        shell: bash
+        run: |
+          pnpm runtime set node 22
+          pnpm add -D vitest@^5.0.0 @vitest/browser@^5.0.0 @vitest/browser-playwright@^5.0.0 @vitest/utils@^5.0.0 vite@^8.0.0
 
       # Since tests initialize git repositories, we have
       # to configure git to avoid warnings.

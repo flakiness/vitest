@@ -6,7 +6,9 @@ it('should NOT report repeats as test duplicates', async (ctx) => {
     'file.test.ts': `
       import { expect, it } from 'vitest';
 
-      it('should work', { repeats: 10 }, async (ctx) => {
+      // Keep it below 10 repeats: Vitest 4 adds an abort listener to the test's
+      // signal on every run, and 11 of them trigger MaxListenersExceededWarning.
+      it('should work', { repeats: 3 }, async (ctx) => {
         expect(1 + 1).toBe(2);
       });
     `
