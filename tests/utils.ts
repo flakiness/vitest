@@ -11,7 +11,11 @@ import FKVitestReporter, { FKVitestReporterOptions } from '../src/reporter';
 // in stack traces using `/private/tmp`. This confuses ViTest
 // location parser, so our location tests fails.
 // To workaround, we explicitly use `/private/tmp` on mac.
-export const ARTIFACTS_DIR = process.platform === 'darwin' ? '/private/tmp/flakiness-vitest' : '/tmp/flakiness-vitest';
+//
+// `path.resolve` prepends the current drive on Windows, where `/tmp/...` is
+// otherwise drive-relative. Vitest 5 resolves the config path through
+// `resolveModule()` (Vitest 4 used `path.resolve`), which mangles such a path.
+export const ARTIFACTS_DIR = path.resolve(process.platform === 'darwin' ? '/private/tmp/flakiness-vitest' : '/tmp/flakiness-vitest');
 
 const DEFAULT_FILES = {
   'vitest.config.ts': `
@@ -20,7 +24,10 @@ const DEFAULT_FILES = {
   `,
   'package.json': JSON.stringify({
     'name': 'my-package',
-    'version': '1.0.0'
+    'version': '1.0.0',
+    // Configs and tests are ES modules. Vite 8 warns about ES module syntax in
+    // files that `package.json` leaves to be loaded as CommonJS.
+    'type': 'module',
   }),
 }
 
@@ -102,7 +109,12 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
       // which the link above redirects into this repository. Keep the cache
       // inside the temporary project instead: concurrent test runs would
       // otherwise fight over one shared cache directory.
-      cacheDir: path.join(targetDir, '.vite-cache'),
+      //
+      // The path keeps a `node_modules` segment, like Vite's default: Vite
+      // treats code under `node_modules` as third-party, and outside of it
+      // warns about the dynamic imports in dependencies that Browser Mode
+      // pre-bundles (such as `vite/module-runner` in Vitest 5).
+      cacheDir: path.join(targetDir, '.cache', 'node_modules', '.vite'),
     },
   );
   await vitest?.close();
