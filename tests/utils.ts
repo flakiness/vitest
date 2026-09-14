@@ -11,7 +11,11 @@ import FKVitestReporter, { FKVitestReporterOptions } from '../src/reporter';
 // in stack traces using `/private/tmp`. This confuses ViTest
 // location parser, so our location tests fails.
 // To workaround, we explicitly use `/private/tmp` on mac.
-export const ARTIFACTS_DIR = process.platform === 'darwin' ? '/private/tmp/flakiness-vitest' : '/tmp/flakiness-vitest';
+//
+// `path.resolve` prepends the current drive on Windows, where `/tmp/...` is
+// otherwise drive-relative. Vitest 5 resolves the config path through
+// `resolveModule()` (Vitest 4 used `path.resolve`), which mangles such a path.
+export const ARTIFACTS_DIR = path.resolve(process.platform === 'darwin' ? '/private/tmp/flakiness-vitest' : '/tmp/flakiness-vitest');
 
 const DEFAULT_FILES = {
   'vitest.config.ts': `

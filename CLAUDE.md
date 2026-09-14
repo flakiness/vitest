@@ -75,7 +75,7 @@ Tests are **integration tests** — each test calls `generateFlakinessReport(ctx
 
 Tests configure the temp project by writing their own `vitest.config.ts` into `files` — there is no separate config parameter. The default `package.json` of a temp project sets `"type": "module"` (Vite 8 warns about ESM configs loaded as CommonJS otherwise). Because the linked `node_modules` points back here, the harness overrides Vite's `cacheDir` to `<temp project>/.cache/node_modules/.vite` so concurrent runs don't share (and pollute) this repo's `node_modules/.vite`. The path must keep a `node_modules` segment: Vite skips its "dynamic import cannot be analyzed" warning only for code under `node_modules`, and Vitest 5 Browser Mode pre-bundles `vite/module-runner`, which has such an import.
 
-Tests use `/tmp/flakiness-vitest` (or `/private/tmp/flakiness-vitest` on macOS) for artifacts. The `global-setup.ts` wipes this directory before each full test run.
+Tests use `/tmp/flakiness-vitest` (or `/private/tmp/flakiness-vitest` on macOS) for artifacts, resolved through `path.resolve` so Windows gets a drive letter — a drive-relative path makes Vitest 5 resolve the temp project's config to garbage. The `global-setup.ts` wipes this directory before each full test run.
 
 `attachments-browser.test.ts` covers attachments end to end. It is browser-only by design: Browser Mode is the only thing in Vitest that produces attachments without the test asking for them. Requires `pnpm exec playwright install chromium`.
 
