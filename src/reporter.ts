@@ -57,7 +57,9 @@ export default class FKVitestReporter implements Reporter {
     assert(this._vitest, 'onInit must be called before onTestRunStart');
     // Watch mode starts multiple runs; for each test run, we create a new
     // reporter.
-    this._impl = ReporterImpl.create(this._vitest.config.root, this._vitest.projects, this._options, this._logger, this._vitest.version, this._vitest.config.config);
+    // Take the config path from Vite: Vitest 5 leaves `config.config` unset
+    // when it finds the config file on its own.
+    this._impl = ReporterImpl.create(this._vitest.config.root, this._vitest.projects, this._options, this._logger, this._vitest.version, this._vitest.vite.config.configFile);
   }
 
   async onTestRunEnd(testModules: ReadonlyArray<TestModule>, unhandledErrors: ReadonlyArray<SerializedError>, reason: TestRunEndReason) {
