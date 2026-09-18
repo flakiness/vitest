@@ -30,14 +30,14 @@ jobs:
           standalone: true
           cache: true
 
-      # package.json develops against Vitest 4 on Node 20, the oldest pairing
-      # the reporter supports. Vitest 5 requires Node 22.12+, so switch both.
-      - name: Switch to Vitest 5
-        if: matrix.vitest == '5'
+      # package.json develops against Vitest 5 on Node 22. Vitest 4 on Node 20
+      # is the oldest pairing the reporter supports, so switch both.
+      - name: Switch to Vitest 4
+        if: matrix.vitest == '4'
         shell: bash
         run: |
-          pnpm runtime set node 22
-          pnpm add -D vitest@^5.0.0 @vitest/browser@^5.0.0 @vitest/browser-playwright@^5.0.0 @vitest/utils@^5.0.0 vite@^8.0.0
+          pnpm runtime set node 20
+          pnpm add -D vitest@^4.1.10 @vitest/browser@^4.1.10 @vitest/browser-playwright@^4.1.10 @vitest/utils@^4.1.10
 
       # Since tests initialize git repositories, we have
       # to configure git to avoid warnings.
