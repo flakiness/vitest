@@ -65,7 +65,7 @@ When changing reporter behavior, keep these in sync:
 
 ## Testing
 
-Tests are **integration tests** — each test calls `generateFlakinessReport(ctx, files, reporterOptions?)` which:
+Tests are **integration tests** — each test calls `generateFlakinessReport(ctx, files, reporterOptions?, vitestOptions?)` which:
 1. Creates a temp directory with test files
 2. Initializes a git repo in it (reporter requires git)
 3. Links this repo's `node_modules` into the temp project, so its files and config can import anything from here (e.g. a Browser Mode config importing `@vitest/browser-playwright`)
@@ -73,7 +73,7 @@ Tests are **integration tests** — each test calls `generateFlakinessReport(ctx
 5. Runs the reporter against it with uploads disabled
 6. Reads back and asserts on the generated report JSON
 
-Tests configure the temp project by writing their own `vitest.config.ts` into `files` — there is no separate config parameter. The default `package.json` of a temp project sets `"type": "module"` (Vite 8 warns about ESM configs loaded as CommonJS otherwise). Because the linked `node_modules` points back here, the harness overrides Vite's `cacheDir` to `<temp project>/.cache/node_modules/.vite` so concurrent runs don't share (and pollute) this repo's `node_modules/.vite`. The path must keep a `node_modules` segment: Vite skips its "dynamic import cannot be analyzed" warning only for code under `node_modules`, and Vitest 5 Browser Mode pre-bundles `vite/module-runner`, which has such an import.
+Tests configure the temp project by writing their own `vitest.config.ts` into `files`. The harness does not pass `config`, so Vitest finds that file on its own, as in most real projects; `vitestOptions` are passed to `startVitest()` like CLI flags (e.g. `{ config: 'custom.config.ts' }` for `--config`). `config.test.ts` covers `report.configPath` for an auto-detected, an explicit and a disabled config. The default `package.json` of a temp project sets `"type": "module"` (Vite 8 warns about ESM configs loaded as CommonJS otherwise). Because the linked `node_modules` points back here, the harness overrides Vite's `cacheDir` to `<temp project>/.cache/node_modules/.vite` so concurrent runs don't share (and pollute) this repo's `node_modules/.vite`. The path must keep a `node_modules` segment: Vite skips its "dynamic import cannot be analyzed" warning only for code under `node_modules`, and Vitest 5 Browser Mode pre-bundles `vite/module-runner`, which has such an import.
 
 Tests use `/tmp/flakiness-vitest` (or `/private/tmp/flakiness-vitest` on macOS) for artifacts, resolved through `path.resolve` so Windows gets a drive letter — a drive-relative path makes Vitest 5 resolve the temp project's config to garbage. The `global-setup.ts` wipes this directory before each full test run.
 

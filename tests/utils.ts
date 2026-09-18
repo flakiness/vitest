@@ -4,7 +4,7 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect, TestContext } from 'vitest';
-import { startVitest } from 'vitest/node';
+import { startVitest, type CliOptions } from 'vitest/node';
 import FKVitestReporter, { FKVitestReporterOptions } from '../src/reporter';
 
 // On MacOS, the /tmp is a symlink to /private/tmp. This results
@@ -31,7 +31,11 @@ const DEFAULT_FILES = {
   }),
 }
 
-export async function generateFlakinessReport(ctx: TestContext, files: Record<string, string>, options?: FKVitestReporterOptions) {
+/**
+ * `vitestOptions` go to `startVitest()` like CLI flags, e.g. `{ config: 'custom.config.ts' }`
+ * for `--config custom.config.ts`.
+ */
+export async function generateFlakinessReport(ctx: TestContext, files: Record<string, string>, options?: FKVitestReporterOptions, vitestOptions?: CliOptions) {
   const targetDir = path.join(
     ARTIFACTS_DIR,
     path.relative(__dirname, ctx.task.file.filepath),
@@ -90,8 +94,10 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
     'test',
     [],
     {
+      // No `config`: like most projects, let Vitest find `vitest.config.ts` in
+      // the root. Vitest 5 resolves an auto-detected config differently from
+      // an explicit one.
       root: targetDir,
-      config: path.join(targetDir, 'vitest.config.ts'),
       watch: false,
       reporters: [reporter],
       clearScreen: false,
@@ -103,6 +109,7 @@ export async function generateFlakinessReport(ctx: TestContext, files: Record<st
       // reference forever and never a real comparison. Pin the value so these
       // runs behave the same on a laptop and on CI.
       update: 'new',
+      ...vitestOptions,
     },
     {
       // Vite caches optimized dependencies in `<root>/node_modules/.vite`,
