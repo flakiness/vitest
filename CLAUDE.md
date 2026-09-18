@@ -10,7 +10,7 @@ The entire reporter is a single source file (`src/reporter.ts`) bundled to `lib/
 
 - **Language**: TypeScript (ESM; esbuild targets Node.js 20, and package/runtime requirements are defined in `package.json`)
 - **Build**: [Kubik](https://github.com/flakiness/kubik) + esbuild (bundle) + tsc (declarations only)
-- **Test framework**: Vitest 4 and 5, supported by a single build. The repo develops against Vitest 4 on Node 20 (the oldest supported pairing); CI also runs every OS against Vitest 5 on Node 22.12+
+- **Test framework**: Vitest 4 and 5, supported by a single build. The repo develops against Vitest 5 on Node 22; CI also runs every OS against Vitest 4 on Node 20 (the oldest supported pairing)
 - **Package manager**: pnpm (v11, pinned via `packageManager` in package.json)
 - **Key dependencies**: `@flakiness/flakiness-report` (report schema types), `@flakiness/sdk` (git, upload, CPU/RAM utils)
 - All dependencies are devDependencies — esbuild bundles them into `lib/reporter.js`, so the published package has zero runtime dependencies (only `vitest`/`@vitest/utils` are externalized)
@@ -83,7 +83,7 @@ Test timeout is 30 seconds (`vitest.config.ts`).
 
 ## CI
 
-- Tests run on **ubuntu, macos, windows** × **Vitest 4, 5** via GitHub Actions (`.github/workflows/tests.yml`). The Vitest 5 leg switches `devEngines` to Node 22 with `pnpm runtime set node 22` (`pnpm pkg set` cannot edit `devEngines` in pnpm 11.5) and `pnpm add`s the v5 packages before installing; `FK_ENV_VITEST` gives each version its own flakiness.io history. Same-repo runs upload the dogfooded report to flakiness.io via OIDC
+- Tests run on **ubuntu, macos, windows** × **Vitest 4, 5** via GitHub Actions (`.github/workflows/tests.yml`). The Vitest 4 leg switches `devEngines` to Node 20 with `pnpm runtime set node 20` (`pnpm pkg set` cannot edit `devEngines` in pnpm 11.5) and `pnpm add`s the v4 packages before installing; `FK_ENV_VITEST` gives each version its own flakiness.io history. Same-repo runs upload the dogfooded report to flakiness.io via OIDC
 - Fork PRs can't use OIDC, so `tests.yml` saves the report as an artifact and `flakiness-upload-fork-prs.yml` (a `workflow_run` trigger) uploads it from a privileged context
 - Publishing to npm is triggered by GitHub Releases (`.github/workflows/publish-npm.yml`); pre-releases go to `@next` tag
 

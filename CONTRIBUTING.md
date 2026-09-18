@@ -39,7 +39,7 @@ This will bundle the source with esbuild and generate TypeScript declarations.
 pnpm test:run
 ```
 
-The reporter supports Vitest 4 and 5 with a single build. The repository develops against Vitest 4 on Node 20, the oldest pairing the reporter supports; CI also runs every test against Vitest 5, which requires Node 22.12+. To test against Vitest 5 locally, run the commands of the "Switch to Vitest 5" step in `.github/workflows/tests.yml`, then `pnpm build && pnpm test:run`. Afterwards, restore `package.json` and `pnpm-lock.yaml` and run `pnpm install`.
+The reporter supports Vitest 4 and 5 with a single build. The repository develops against Vitest 5 on Node 22; CI also runs every test against Vitest 4 on Node 20, the oldest pairing the reporter supports. To test against Vitest 4 locally, run the commands of the "Switch to Vitest 4" step in `.github/workflows/tests.yml`, then `pnpm build && pnpm test:run`. Afterwards, restore `package.json` and `pnpm-lock.yaml` and run `pnpm install`.
 
 ## Releasing
 
