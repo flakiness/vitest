@@ -60,7 +60,7 @@ export default class FKVitestReporter implements Reporter {
     // reporter.
     // Take the config path from Vite: Vitest 5 leaves `config.config` unset
     // when it finds the config file on its own.
-    this._impl = ReporterImpl.create(this._vitest.config.root, this._vitest.projects, this._options, this._logger, this._vitest.version, this._vitest.vite.config.configFile);
+    this._impl = ReporterImpl.create(this._vitest.config.root, this._vitest.projects, this._options, this._logger, this._vitest.version, this._vitest.vite.config.configFile, this._vitest.config.shard);
   }
 
   async onTestRunEnd(testModules: ReadonlyArray<TestModule>, unhandledErrors: ReadonlyArray<SerializedError>, reason: TestRunEndReason) {
@@ -70,6 +70,8 @@ export default class FKVitestReporter implements Reporter {
 }
 
 const gTestToTestCaseId = new WeakMap<FK.Test, string>();
+
+type VitestShard = NonNullable<Vitest['config']['shard']>;
 
 type TestDuplicates = {
   tests: FK.Test[],
@@ -89,7 +91,7 @@ class ReporterImpl {
 
   private _environments: FK.Environment[] = [];
 
-  static create(rootPath: string, projects: TestProject[], options: FKVitestReporterOptions, logger: FKVitestLogger, vitestVersion: string, config?: string) {
+  static create(rootPath: string, projects: TestProject[], options: FKVitestReporterOptions, logger: FKVitestLogger, vitestVersion: string, config?: string, shard?: VitestShard) {
     const result = GitWorktree.initialize(rootPath);
     if (!result.ok) {
       logger.warn(`[flakiness.io] Failed to fetch commit info - is this a git repo? (${result.error})`);
@@ -97,7 +99,7 @@ class ReporterImpl {
       return;
     }
     const commitId = (options.commitId || process.env.FLAKINESS_COMMIT_ID || result.commitId) as FK.CommitId;
-    return new ReporterImpl(result.worktree, projects, commitId, options, logger, vitestVersion, config);
+    return new ReporterImpl(result.worktree, projects, commitId, options, logger, vitestVersion, config, shard);
   }
 
   constructor(
@@ -108,6 +110,7 @@ class ReporterImpl {
     private _logger: FKVitestLogger,
     private _vitestVersion: string,
     private _configPath?: string,
+    private _shard?: VitestShard,
   ) {
     // In Vitest, all projects MUST HAVE UNIQUE NAMES.
     // So we create environments per project name.
@@ -503,7 +506,7 @@ class ReporterImpl {
 
     const duration = (Date.now() - this._startTimestamp) as FK.DurationMS;
     const report: FK.Report = ReportUtils.normalizeReport({
-      title: this._options.title ?? process.env.FLAKINESS_TITLE,
+      title: this._options.title ?? process.env.FLAKINESS_TITLE ?? defaultShardTitle(this._shard),
       url: CIUtils.runUrl(),
       flakinessProject: this._options.flakinessProject,
       category: 'vitest',
@@ -546,6 +549,10 @@ class ReporterImpl {
 
     this._logger.log(`\n${showReportMessage(outputFolder)}\n`);
   }
+}
+
+function defaultShardTitle(shard?: VitestShard): string | undefined {
+  return shard ? `Shard ${shard.index}/${shard.count}` : undefined;
 }
 
 function dupeSuffix(dupeIndex: number): string {

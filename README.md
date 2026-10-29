@@ -192,7 +192,7 @@ The reporter accepts the following options:
 
 ### `title?: string`
 
-Optional human-readable report title. Typically used to name a CI run, matrix shard, or other execution group. Defaults to the `FLAKINESS_TITLE` environment variable, or empty otherwise.
+Optional human-readable report title. Typically used to name a CI run, matrix shard, or other execution group. Defaults to the `FLAKINESS_TITLE` environment variable if set; otherwise a run with `--shard=N/M` is titled `Shard N/M`, and an unsharded run has no title.
 
 ```typescript
 reporters: [
