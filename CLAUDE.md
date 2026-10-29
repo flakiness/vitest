@@ -29,7 +29,7 @@ pnpm test:run         # Run tests once (CI-style)
 
 ```
 src/reporter.ts       # The entire reporter implementation (single file)
-lib/                  # Build output (JS bundle + sourcemaps) — gitignored
+lib/                  # Build output (JS bundle) — gitignored
 types/                # Build output (declaration files) — gitignored
 tests/
   utils.ts            # Test harness: generateFlakinessReport() spins up a temp vitest instance
