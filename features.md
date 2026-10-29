@@ -20,7 +20,7 @@ Status of [Flakiness Report Features](https://github.com/flakiness/flakiness-rep
 | 13 | Annotations | ✅ | Emits native `testCase.annotations()` (type + description + location), plus synthesizes `skip` / `todo` (from `options.mode`), `fail` (from `options.fails`), and `dupe` (from duplicate-name handling). No `slow` / `owner` synthesis. |
 | 14 | Tags | ✅ | Read from `testCase.tags` (Vitest 4.1+). Tests declare tags via `it(name, { tags: [...] }, fn)` and the reporter copies them onto `FK.Test.tags`. |
 | 15 | `parallelIndex` | ❌ | Not populated. Vitest runs tests across workers but the reporter does not thread worker identity through to attempts. [upsteam bug](https://github.com/vitest-dev/vitest/issues/10306) |
-| 16 | `FLAKINESS_TITLE` | ✅ | Honored; also settable via the `title` reporter option. |
+| 16 | `FLAKINESS_TITLE` | ✅ | Honored; also settable via the `title` reporter option. Without either, a run with `--shard=N/M` is titled `Shard N/M`. |
 | 17 | `FLAKINESS_OUTPUT_DIR` | ✅ | Honored; also settable via the `outputFolder` reporter option. Defaults to `flakiness-report`. |
 | 18 | Sources | ✅ | Top-level `sources[]` populated via the SDK's `collectSources`. |
 | 19 | Error snippets | ❌ | `ReportError.snippet` is not populated. Vitest produces formatted snippets during CLI output but does not surface them on the structured error object. |
