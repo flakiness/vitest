@@ -5,7 +5,7 @@ Status of [Flakiness Report Features](https://github.com/flakiness/flakiness-rep
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| 1 | Report metadata | ✅ | `commitId`, `flakinessProject`, `url`, `configPath`, `startTimestamp`, `duration` all populated. `url` auto-detected via `CIUtils.runUrl()`. `configPath` is the config file Vite loaded (`vitest.vite.config.configFile`), because Vitest 5 leaves `vitest.config.config` unset when it finds the config file on its own. |
+| 1 | Report metadata | ✅ | `commitId`, `flakinessProject`, `url`, `configPath`, `startTimestamp`, `duration` all populated. `url` auto-detected via `CIUtils.runUrl()`. `commitId` is the current git commit unless overridden by the `commitId` reporter option or `FLAKINESS_COMMIT_ID`. `configPath` is the config file Vite loaded (`vitest.vite.config.configFile`), because Vitest 5 leaves `vitest.config.config` unset when it finds the config file on its own. |
 | 2 | Environment metadata | ✅ | `name`, `osName`, `osVersion`, `osArch` |
 | 3 | Multiple environments | ✅ | One `environments[]` entry per Vitest project (project names must be unique in Vitest). |
 | 4 | Custom environments (`FK_ENV_*`) | ✅ | Supports configuring custom environment properties via `FK_ENV_*` env variables. |
