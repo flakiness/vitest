@@ -403,7 +403,9 @@ class ReporterImpl {
   }
 
   private _renameDuplicates(duplicates: TestDuplicates[], testIdToTests: Map<string, FK.Test[]>) {
-    for (const { tests, testId } of duplicates) {
+    // The same test runs once per Vitest project; count it once.
+    const renamedFullNames = new Set<string>();
+    for (const { tests, testId, fullName } of duplicates) {
       // Sort tests according to their vitest identifier.
       tests.sort((test1, test2) => {
         const id1 = gTestToTestCaseId.get(test1) ?? '';
@@ -422,8 +424,11 @@ class ReporterImpl {
           attempt.annotations.push({ type: 'dupe' });
         });
         testIdToTests.set(testId + dupeSuffix(dupeIndex), [tests[i]]);
+        renamedFullNames.add(fullName + dupeSuffix(dupeIndex));
       }
     }
+    const count = renamedFullNames.size;
+    this._logger.warn(`[flakiness.io] ⚠ Renamed ${count} ${count === 1 ? 'test' : 'tests'} with duplicate names (duplicates: 'rename').`);
   }
 
   private _detectDuplicates(fileSuites: FK.Suite[]): {
@@ -496,10 +501,10 @@ class ReporterImpl {
 
     const { duplicates, testIdToTests } = this._detectDuplicates(fileSuites);
     if (duplicates.length) {
-      this._warnDuplicates(duplicates);
       if (this._options.duplicates === 'rename') {
         this._renameDuplicates(duplicates, testIdToTests);
       } else {
+        this._warnDuplicates(duplicates);
         this._failDuplicates(duplicates);
       }
     }
