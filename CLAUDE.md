@@ -54,7 +54,7 @@ CONTRIBUTING.md       # Build & release instructions
 - Vitest never clears `task.artifacts` between retries, so a test that failed several times carries one failure screenshot per failed attempt (named `failure-screenshot.png`, `failure-screenshot-2.png`, ...).
 - Collecting attachments is IO-bound, so `_collectSuite` / `_collectTest` are async and the whole tree walk is awaited in `onTestRunEnd()` — before duplicate handling, which rewrites attempts.
 - Vitest does not provide per-retry detail, so retries are synthesized: N-1 zero-duration failed attempts + 1 final attempt (errors/stdio/annotations/attachments duplicated across them). See https://github.com/vitest-dev/vitest/issues/10303
-- Behavior is configurable via reporter options (`title`, `flakinessProject`, `endpoint`, `token`, `outputFolder`, `duplicates`, `disableUpload`) and matching `FLAKINESS_*` env vars; `FK_ENV_*` vars become environment metadata. All documented in README.md.
+- Behavior is configurable via reporter options (`title`, `commitId`, `flakinessProject`, `endpoint`, `token`, `outputFolder`, `duplicates`, `disableUpload`) and matching `FLAKINESS_*` env vars; `FK_ENV_*` vars become environment metadata. All documented in README.md.
 - Dogfooding gotcha: `vitest.config.ts` uses `@flakiness/vitest` from npm (pinned devDependency, currently one version behind), **not** the local `src/`. Local changes don't affect the project's own report until published.
 
 ## Documentation Upkeep

@@ -10,6 +10,7 @@ import type { Reporter, SerializedError, TestCase, TestModule, TestProject, Test
 import pkg from '../package.json' with { type: 'json' };
 
 export type FKVitestReporterOptions = {
+  commitId?: string,
   disableUpload?: boolean,
   flakinessProject?: string,
   endpoint?: string,
@@ -95,7 +96,8 @@ class ReporterImpl {
       logger.error(`[flakiness.io] Report is NOT generated.`);
       return;
     }
-    return new ReporterImpl(result.worktree, projects, result.commitId, options, logger, vitestVersion, config);
+    const commitId = (options.commitId || process.env.FLAKINESS_COMMIT_ID || result.commitId) as FK.CommitId;
+    return new ReporterImpl(result.worktree, projects, commitId, options, logger, vitestVersion, config);
   }
 
   constructor(

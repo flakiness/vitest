@@ -19,6 +19,7 @@ A custom Vitest reporter that generates Flakiness Reports from your Vitest test 
   - [CI Integration](#ci-integration)
 - [Configuration Options](#configuration-options)
   - [`title?: string`](#title-string)
+  - [`commitId?: string`](#commitid-string)
   - [`flakinessProject?: string`](#flakinessproject-string)
   - [`endpoint?: string`](#endpoint-string)
   - [`token?: string`](#token-string)
@@ -199,6 +200,18 @@ reporters: [
 ]
 ```
 
+### `commitId?: string`
+
+Full SHA of the commit the report belongs to. Defaults to the `FLAKINESS_COMMIT_ID` environment variable, or the current git commit (`git rev-parse HEAD`) otherwise.
+
+Set it when the checked-out commit is not the one under test, for example when a CI job makes a local commit before running the tests.
+
+```typescript
+reporters: [
+  ['@flakiness/vitest', { commitId: process.env.GITHUB_SHA }]
+]
+```
+
 ### `flakinessProject?: string`
 
 The Flakiness.io project identifier in `org/project` format. Required for CI OIDC authentication. When set, and when the Flakiness.io project is bound to the repository running the pipeline, the reporter authenticates uploads via a GitHub Actions or GitLab CI/CD OIDC token with no access token required. See [Uploading Reports](#uploading-reports) for the per-provider requirements.
@@ -275,6 +288,7 @@ reporters: [
 The reporter respects the following environment variables:
 
 - **`FLAKINESS_TITLE`**: Human-readable report title (equivalent to `title` option)
+- **`FLAKINESS_COMMIT_ID`**: Commit the report belongs to; defaults to the current git commit (equivalent to `commitId` option)
 - **`FLAKINESS_ACCESS_TOKEN`**: Access token for Flakiness.io uploads (equivalent to `token` option)
 - **`FLAKINESS_ENDPOINT`**: Custom Flakiness.io endpoint URL (equivalent to `endpoint` option)
 - **`FLAKINESS_OUTPUT_DIR`**: Output directory for reports (equivalent to `outputFolder` option)
@@ -295,6 +309,7 @@ export default defineConfig({
       'default',
       ['@flakiness/vitest', {
         title: 'My Test Run',
+        commitId: process.env.FLAKINESS_COMMIT_ID,
         flakinessProject: 'my-org/my-project',
         endpoint: process.env.FLAKINESS_ENDPOINT,
         token: process.env.FLAKINESS_ACCESS_TOKEN,
