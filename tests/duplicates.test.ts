@@ -35,3 +35,18 @@ it('should fail duplicate test names', async (ctx) => {
   expect(allWarns).toContain('3 tests');
   expect(allWarns).toContain('sum.test.ts > should work');
 });
+
+it('should print a single summary line when renaming duplicates', async (ctx) => {
+  const { log } = await generateFlakinessReport(ctx, {
+    'sum.test.ts': `
+      import { expect, it } from 'vitest';
+
+      it('should work', async (ctx) => { });
+      it('should work', async (ctx) => { });
+      it('should work', async (ctx) => { });
+    `
+  }, { duplicates: 'rename' });
+  expect(log.warns).toEqual([
+    `[flakiness.io] ⚠ Renamed 2 tests with duplicate names (duplicates: 'rename').`,
+  ]);
+});
