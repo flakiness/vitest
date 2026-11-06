@@ -23,6 +23,9 @@ jobs:
       FK_ENV_VITEST: ${{ matrix.vitest }}
     steps:
       - uses: actions/checkout@v6
+      - uses: flakiness/authenticate-fork-prs@v1
+        with:
+          flakiness-project: flakiness/vitest
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
